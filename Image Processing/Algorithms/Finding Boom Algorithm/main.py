@@ -27,15 +27,18 @@ class oilSpillImage:
         return output, gray
 
 
-    def process2(self, img, hsvRange1, hsvRange2):
+    def process2(self, img, hsvRange1, hsvRange2, areaReq):
         hsvVersion = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         wantedColor = cv.inRange(hsvVersion, hsvRange1, hsvRange2)
-        # kernel = np.ones((7, 7), np.uint8)
-        # median = cv.morphologyEx(wantedColor, cv.MORPH_CLOSE, kernel)
+        # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        # _, thresged =  cv.threshold(gray, 160, 255, cv.THRESH_BINARY)
+        kernel = np.ones((7, 7), np.uint8)
+        median = cv.morphologyEx(wantedColor, cv.MORPH_CLOSE, kernel)
         # median = np.uint8(median)
-        median = cv.GaussianBlur(wantedColor, (3, 3), cv.BORDER_DEFAULT)
-        median = cv.medianBlur(median, 3)
+        median = cv.GaussianBlur(median, (3, 3), cv.BORDER_DEFAULT)
+        # median = cv.medianBlur(median, 3)
 
+        # C,H=cv.findContours(thresged, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         contours, hierarchies = cv.findContours(median, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
         final = img;
@@ -50,7 +53,7 @@ class oilSpillImage:
         for i in range(len(contours)):
 
             area = cv.contourArea(contours[i])
-            if area > 2000:
+            if area > areaReq:
                 # epsilon = 0.006 * cv.arcLength(contours[i], True)
                 # approx = cv.approxPolyDP(contours[i], epsilon, True)
                 # final = cv.drawContours(final, [approx], 0, (255, 0, 0), -1)
@@ -62,7 +65,7 @@ class oilSpillImage:
 
                 epsilon = 0.0008 * cv.arcLength(contours[i], True)
                 poly = cv.approxPolyDP(contours[i], epsilon, True);
-                final = cv.drawContours(final, [poly], -1, (255, 0, 0), -1);
+                final = cv.drawContours(final, [poly], -1, (255, 200, 0), -1);
 
                 # final = cv.drawContours(final, contours, i, (255, 0, 0), -1)
 
@@ -82,17 +85,17 @@ class oilSpillImage:
                 continue
 
                 kernel = np.ones((5, 5), np.uint8)
-                dilation = cv.dilate(final, kernel, iterations=1)
+                # dilation = cv.dilate(final, kernel, iterations=1)
                 kernel = np.ones((10, 10), np.uint8)
-                final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
+                # final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
                 final = np.uint8(final)
-                final = cv.medianBlur(final, (5, 5))
-                final = cv.GaussianBlur(final, (5, 5))
+                final = cv.medianBlur(final, (3, 3))
+                final = cv.GaussianBlur(final, (1, 1))
 
         for i in range(len(contours)):
 
             area = cv.contourArea(contours[i])
-            if area > 2000:
+            if area > areaReq:
                 hull = cv.convexHull(contours[i])
                 cv.drawContours(final, [hull], -1, (0, 0, 255), 4)
 
@@ -112,14 +115,13 @@ class oilSpillImage:
         # final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
         # final = np.uint8(final)
 
-        return final, median, contours, maxArea, maxContournumber, maxContour, hull, totalOilArea, hsvVersion
-
+        return final, median, contours, maxArea, maxContournumber, maxContour, hull, totalOilArea
 
     def boom(self, img, contour, scale=1):
         (x, y), radius = cv.minEnclosingCircle(contour)
         center = (int(x), int(y))
         radius = int(radius * scale)
-        cv.circle(img, center, radius, (0, 255, 255), 2)  # yellow
+        # cv.circle(img, center, radius, (0, 255, 255), 2)  # yellow
         return img, center, radius
 
     def ellipseboom(self, img, hull):
@@ -139,7 +141,7 @@ class oilSpillImage:
         rect = cv.minAreaRect(hull)
         box = cv.boxPoints(rect)
         box = np.int0(box)
-        cv.drawContours(img, [box], 0, (0, 0, 255), 2)
+        cv.drawContours(img, [box], 0, (0, 0, 255), -1) //red
         return img
 
     def blobdetection(self,image):
@@ -302,15 +304,16 @@ def scale(img, scale=0.2):
     dims = (dim1, dim2)
     return cv.resize(img, dims, interpolation=cv.INTER_AREA)
 
-pic = scale(cv.imread('C:/School/Science Fair/2022-2023/Oil Spill Pictures/Practice Photos/OilSpill1.1.jpg'), scale=0.5)
+pic = scale(cv.imread('C:/School/Science Fair/2022-2023/Oil Spill Pictures/Practice Photos/OilSpill1.1.jpg'), scale=.75)
+# pic = scale(cv.imread('C:\GitHub\OCTOPAS\Image Processing\Images\Practice Photos\OilSpill6.jpg'), scale=.75)
 # picAddress  = sys.argv[1]
 # pic = scale(cv.imread(picAddress), scale=0.5)
 
 img1 = oilSpillImage(pic)
-# final6, median6, contour6, maxContourArea6, element_6, maxContour6, hull6, totalOilArea6  = img1.process2(pic, (17, 9, 154), (43, 27, 181))
-final6, median6, contour6, maxContourArea6, element_6, maxContour6, hull6, totalOilArea6, hsvversion  = img1.process2(pic,(25, 70, 0), (179, 255, 255) )
+# final6, median6, contour6, maxContourArea6, element_6, maxContour6, hull6, totalOilArea6  = img1.process2(pic, (17, 9, 154), (43, 27, 181), 1000)
+final6, median6, contour6, maxContourArea6, element_6, maxContour6, hull6, totalOilArea6,   = img1.process2(pic,(27, 54, 60), (87, 255, 255), 2000)
 cv.imshow('median', median6)
-
+# cv.imshow('hsv', hsvversion)
 
 boom6, center6, radius6 = img1.boom(final6, hull6, scale=1.1)
 ellipseboom6, ellipse6 = img1.ellipseboom(final6, hull6)
