@@ -7,6 +7,7 @@ from kivy.uix.image import Image
 
 import math
 from kivy.config import Config
+
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 import cv2 as cv
 from time import process_time
@@ -18,9 +19,10 @@ from matplotlib import pyplot as plt
 from sklearn import cluster
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
-Window.clearcolor= (1, 1, 1, 1)
+
+Window.clearcolor = (1, 1, 1, 1)
 from kivy.utils import get_color_from_hex as rgba
-# import kivy.utils.get_color_from_hex as rgba
+import kivy.core.text.markup
 
 if platform == "android":
     from android.permissions import request_permissions, Permission
@@ -33,7 +35,11 @@ if platform == "android":
 
 class oilSpillImage:
     def __init__(self, img):
+        self.scaleW = None
+        self.scaleH = None
+        self.combinedScale = None
         self.img = img
+
     def scale(self, img, scale=0.2):
         dim1 = int(img.shape[1] * scale)
         dim2 = int(img.shape[0] * scale)
@@ -67,9 +73,9 @@ class oilSpillImage:
 
         # get the unique colors
         colors, counts = np.unique(img4, return_counts=True, axis=0)
-        print(colors)
+        # print(colors)
         print("xxx")
-        print(counts)
+        # print(counts)
         unique = zip(colors, counts)
 
         # function to convert from r,g,b to hex
@@ -92,13 +98,22 @@ class oilSpillImage:
         # plt.show()
         # fig.savefig('barn_color_historgram.png')
         # plt.close(fig)
+
         endTime = process_time()
+
         processingTime = endTime - startTime
 
+        (Hpx, Wpx) = img3.shape[:2]
+        Wcm = 88
+        Hcm = 45
 
+        self.scaleH = Hpx / Hcm
+        self.scaleW = Wpx / Wcm
+        print(str(self.scaleH), str(self.scaleW))
+        self.combinedScale = (self.scaleW + self.scaleW) / 2
+        totalWaterArea = Hcm * Wcm
 
-
-        return img3, processingTime
+        return img3, processingTime, totalWaterArea, self.scaleH, self.scaleW, self.combinedScale
 
     def makePerimeters(self, real, reduced, areaReq=1000):
         reduced = cv.cvtColor(reduced, cv.COLOR_BGR2GRAY)
@@ -128,7 +143,7 @@ class oilSpillImage:
                 # approx = cv.approxPolyDP(contours[i], epsilon, True)
                 # final = cv.drawContours(final, [approx], 0, (255, 0, 0), -1)
 
-                hull = cv.convexHull(contours[i])
+                # hull = cv.convexHull(contours[i])
                 # hull_list.append(hull)
 
                 oil_contours.append(contours[i])
@@ -144,15 +159,10 @@ class oilSpillImage:
                 final = np.uint8(final)
                 totalOilArea = totalOilArea + area
 
-
-            else:
-                continue
             if area > maxArea:
                 maxArea = area
                 maxContournumber = i
                 maxContour = contours[i]
-            else:
-                continue
 
                 # kernel = np.ones((5, 5), np.uint8)
                 # # dilation = cv.dilate(final, kernel, iterations=1)
@@ -179,7 +189,9 @@ class oilSpillImage:
         uni_hull.append(hull)  # <- array as first element of list
         cv.drawContours(final, uni_hull, -1, (165, 255, 0), 4);
 
-        return final, contours
+        hullLengthinPX = cv.arcLength(hull, closed=True)
+        hullLengthinCM = hullLengthinPX / self.combinedScale
+        return final, contours, totalOilArea, hullLengthinCM
 
     def label(self, finalimg, ellipse, totalOilArea, circlerad, largestContourArea, hull, px, cm):
         scale = px / cm
@@ -231,13 +243,14 @@ class oilSpillImage:
 
     # def analyze(self, processedIMG):
 
+
 class FilePickerScreen(Screen):
     def __init__(self, **kwargs):
         self.processPic = None
-        # self.OilImage = Image()
-        # self.OilImage.nocache = True
+        self.scaleW = None
+        self.scaleH = None
+        self.combinedScale = None
 
-        # self.ProcessedImage = Image()
         super(FilePickerScreen, self).__init__(**kwargs)
         print(len(self.children))
         print(len(self.children))
@@ -267,7 +280,7 @@ class FilePickerScreen(Screen):
         # print("selected: %s" % filename[0])
 
     def update_file_list_entry(self, file_chooser, file_list_entry, *args):
-        file_list_entry.font_size =  30
+        file_list_entry.font_size = 30
         file_list_entry.ids['filename'].color = rgba("#005c7a")
 
     def open(self, path, fileName):
@@ -276,10 +289,12 @@ class FilePickerScreen(Screen):
             file = os.path.join(path, fileName[0])
             pic = cv.imread(file)
             (h, w) = pic.shape[:2]
-            if (h > w):
+            if h > w:
 
                 pic = cv.rotate(pic, cv.ROTATE_90_CLOCKWISE)
                 cv.imwrite('originalImage.png', pic)
+                print('rotated')
+                print(h, w)
 
             else:
                 cv.imwrite('originalImage.png', pic)
@@ -291,36 +306,48 @@ class FilePickerScreen(Screen):
         except:
             self.title.text = "An error occured!"
 
-    def scale(img, scale=0.2):
+    def scale(self, img, scale=0.2):
         dim1 = int(img.shape[1] * scale)
         dim2 = int(img.shape[0] * scale)
         dims = (dim1, dim2)
         return cv.resize(img, dims, interpolation=cv.INTER_AREA)
 
-    def process(self, path, fileName):
+    def process(self):
 
         file = self.OilImage.source
-        pic = cv.imread(file)
-        self.processPic = oilSpillImage(pic)
-        print("file being processed" + file)
+        if (file != "PleasePickAnImage.png"):
+            pic = cv.imread(file)
+            self.processPic = oilSpillImage(pic)
+            print("file being processed" + file)
 
-        reducedColors, processingTime = self.processPic.findOil(pic)
+            reducedColors, processingTime, totalWaterAreainCM3, self.scaleH, self.scaleW, self.combinedScale = self.processPic.findOil(pic)
 
-        processingTime = str(processingTime)
+            final, contours, totalOilAreainPx, hullLengthinCM3 = self.processPic.makePerimeters(pic, reducedColors, areaReq=100)
+            cv.imwrite('processed_pic.jpg', final)
 
-        final, contours = self.processPic.makePerimeters(pic, reducedColors, areaReq=100)
-        cv.imwrite('processed_pic.jpg', final)
+            totalOilAreainCM3 = totalOilAreainPx / self.scaleH
+            totalOilAreainCM3 = totalOilAreainCM3 / self.scaleW
+            totalOilAreainCM3 = round(totalOilAreainCM3, 2)
 
-        self.OilImage.source = 'processed_pic.jpg'
-        self.OilImage.reload()
+            totalOilPercent = (totalOilAreainCM3 / totalWaterAreainCM3) * 100
+            totalOilPercent = round(totalOilPercent, 2)
 
-        self.title.text = "Image Analytics:  "
-        self.processTimeLabel.text = "The time taken to process the image was: " + processingTime + " seconds!"
-        self.areaOfWaterLabel.text = "The area of water is " + " cubic centimeters"
-        self.areaOfOilLabel.text = "The area of oil is " + " cubic centimeters"
-        self.percentOfOilLabel.text = "The percent of oil in the water is " + " %"
-        self.lengthOfBoomLabel.text = "The length of the boom is" + " centimeters"
+            hullLengthinCM3 = round(hullLengthinCM3, 2)
+            # self.combinedScale = (self.scaleW + self.scaleH) / 2
 
+
+
+            self.OilImage.source = 'processed_pic.jpg'
+            self.OilImage.reload()
+
+            self.title.text = "Image Analytics:  "
+            self.processTimeLabel.text = "The time taken to process the image was: " + str(processingTime) + " seconds!"
+            self.areaOfWaterLabel.text = "The area of water is " + str(totalWaterAreainCM3) + " cubic centimeters"
+            self.areaOfOilLabel.text = "The area of oil is " + str(totalOilAreainCM3) + " cubic centimeters"
+            self.percentOfOilLabel.text = "The percent of oil in the water is " + str(totalOilPercent) + "%"
+            self.lengthOfBoomLabel.text = "The length of the boom is " + str(hullLengthinCM3) +  " centimeters"
+        else:
+            self.title.text = "Please select an Image!"
 
     def clear(self, path):
         print("cleared!")
@@ -348,7 +375,6 @@ class WindowManager(ScreenManager):
 class OctopasAPP(App):
 
     def build(self):
-
         sm = WindowManager()
         aids = FilePickerScreen(name='first')
         aids._finish_init()
@@ -360,39 +386,3 @@ class OctopasAPP(App):
 
 if __name__ == '__main__':
     OctopasAPP().run()
-
-# class FilePicker(BoxLayout):
-
-# OilImage = OriginalImage()
-# OilImage.source(file)
-# self.add_widget(FilePicker.OilImage)
-
-
-#
-# def scale(img, scale=0.2):
-#     dim1 = int(img.shape[1] * scale)
-#     dim2 = int(img.shape[0] * scale)
-#     dims = (dim1, dim2)
-#     return cv.resize(img, dims, interpolation=cv.INTER_AREA)
-#
-#
-# pic = scale(cv.imread('Practice Photos/OilSpill7.jpg'), scale=0.5)
-# # picAddress  = sys.argv[1]
-# # pic = scale(cv.imread(picAddress), scale=0.5)
-#
-# img1 = OilSpillImage(pic)
-# final6, median6, contour6, maxContourArea6, element_6, maxContour6, hull6, totalOilArea6 = img1.process2(pic,
-#                                                                                                          (17, 9, 154),
-#                                                                                                          (43, 27, 181))
-# cv.imshow('median', median6)
-# boom6, center6, radius6 = img1.boom(final6, hull6, scale=1.1)
-# ellipseboom6, ellipse6 = img1.ellipseboom(final6, hull6)
-# outerHullList = img1.outerEdges(final6)
-# outerHull = outerHullList[0]
-# outerCircle, outerCenter, outerRadius = img1.boom(final6, outerHull, scale=0.9)
-# cm = 3
-# pixelsOnScreen = outerRadius
-# scale = pixelsOnScreen / cm
-# print(math.pi * ((pixelsOnScreen / scale) ** 2))
-# print()
-# labeled6 = img1.label(final6, ellipse6, totalOilArea6, radius6, maxContourArea6, hull6, pixelsOnScreen, cm)

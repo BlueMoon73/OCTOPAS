@@ -156,7 +156,11 @@ WindowManager:
                 on_release: FilePicker.open(filechooser.path, filechooser.selection)
                 size_hint: .3, None
                 size: 75, 100
+                border: 15,15,15,15
                 font_size: (root.height / 15) * 0.7
+
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
 
 #                size_hint_x: .3
 #                size: self.texture_size
@@ -166,16 +170,26 @@ WindowManager:
                 text: "Process!"
                 size_hint: .3, None
                 size: 75, 100
+                border: 15,15,15,15
                 font_size: (root.height / 15) * 0.7
+
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
 #                size_hint_y:.5
 #                size_hint_x: .3
 #                size: self.texture_size
-                on_release: FilePicker.process(filechooser.path, filechooser.selection)
+                on_release: FilePicker.process()
             Button:
                 id: clearButton
                 text: "Clear!"
                 size_hint: .3, None
                 size: 75, 100
+
+#                background_normal: 'normal.png'
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
+#                background_color: rgba('#F3E6E6')
+                border: 15,15,15,15
                 font_size: (root.height / 15) * 0.7
 #                size_hint_y:.5
 #                size: self.texture_size
