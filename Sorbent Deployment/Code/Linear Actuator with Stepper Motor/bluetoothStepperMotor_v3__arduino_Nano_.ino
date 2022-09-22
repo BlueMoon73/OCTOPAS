@@ -35,10 +35,16 @@ void loop() {
 //          }
       
     Serial.println("A spin started");
-    stepper.setSpeed(15);
+    stepper.setSpeed(30);
     stepper.step(-1024);
 
     }
+
+
+
+
+
+    
     
 //    }
 //
