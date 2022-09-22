@@ -4,10 +4,10 @@
 
 char input; 
 
-const int STEPS = 64; // the number of steps in one revolution of your motor (28BYJ-48)
+const int STEPS = 1024; // the number of steps in one revolution of your motor (28BYJ-48)
 
-Stepper stepper(STEPS, 8, 10, 9, 11);
-SoftwareSerial BT(2, 3); // RX | TX
+Stepper stepper(STEPS, 5, 7, 6, 8);
+SoftwareSerial BT(3, 2 ); // RX | TX
 
 
 void setup() {
@@ -18,15 +18,13 @@ void setup() {
 }
 
 void loop() {
+
+
+
+
+  
   // put your main code here, to run repeatedly:
 //   int numSteps = Serial.parseInt();
-  if(BT.available()){
-    Serial.write(BT.read());
-  }
-  if(Serial.available()){
-    Serial.println("connected!");
-    BT.write(Serial.read());
-  }
     input = BT.read();  
     
     if (input == 'A'){
@@ -38,11 +36,9 @@ void loop() {
       
     Serial.println("A spin started");
     stepper.setSpeed(15);
-    stepper.step(-64);
+    stepper.step(-1024);
 
     }
-
-    
     
 //    }
 //
