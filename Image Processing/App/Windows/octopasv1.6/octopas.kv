@@ -1,0 +1,211 @@
+#:kivy 2.0.0
+#:import platform kivy.utils.platform
+#:import rgba kivy.utils.get_color_from_hex
+WindowManager:
+    FilePickerScreen:
+    ProcessedImageScreen:
+
+
+<FilePickerScreen>:
+    name: "first"
+    id: FilePicker
+    BoxLayout:
+        id: "overallLay"
+#        size: root.width, root.height
+        orientation: 'vertical'
+        height: self.minimum_height
+        background_color: 'white'
+        BoxLayout:
+            id: OCTOPASlabel
+            background_color: ''
+#            padding:
+#            height: self.minimum_height
+            size_hint_y: 0.5
+            Image:
+                source: 'OCTOPAS.png'
+#                pos_hint: {'center_x': 2.0/3, 'center_y': .2}
+##                pos_hint: {'center_x': 0.5, 'top_y': 0.75}
+#
+#                size_hint: 1, 1
+                width: self.parent.width
+                height: self.parent.width/self.image_ratio
+
+                allow_stretch: True
+                keep_ratio: True
+#                size_hint_x: 1
+        BoxLayout:
+            id: displayOverlay
+            orientation: 'horizontal'
+#            background_color: 'white'
+#            size: root.width, root.height
+#            size_hint_y: 0.9
+
+            padding: 10
+            spacing: 10
+            FileChooserListView:
+
+                id: filechooser
+                rootpath: '/storage/emulated/0/' if platform == 'android' else '/'
+                on_selection: FilePicker.selected(filechooser.selection)
+#                on_entry_added: FilePicker.update_file_list_entry(filechooser, entry)
+#                on_subentry_to_entry:
+                border: (10,10,10,10)
+#                font_size: (root.height / 15) * 0.8
+#                text_size: 50
+#                color: (0.0, 1.0, 1.0, 1.0)
+
+
+
+
+            Image:
+                id: OilImage
+                source: 'PleasePickAnImage.png'
+                keep_ratio: True
+                allow_stretch: True
+                width: self.parent.width
+                height: self.parent.width/self.image_ratio
+
+        BoxLayout:
+            id: analysisOverlay
+            orientation: 'vertical'
+            background_color: 'white'
+            size_hint_y: None
+            height: self.minimum_height
+            padding: 10
+            spacing:  root.height/30
+
+
+            Label:
+                id: title
+#                text: "Analytics of Image"
+                color: rgba("#005c7a")
+                text: ''
+                halign: 'left'
+                text_size: self.size
+#                size_hint_x:1
+                size: (root.width, 15)
+                font_size: (root.height / 15) * 0.5
+            Label:
+                id: processTime
+                text: ''
+                color: rgba("#005c7a")
+                halign: 'left'
+                text_size: self.size
+#                size_hint_x:1
+                size: (root.width, 10)
+                font_size: (root.height / 15) * 0.4
+
+
+            Label:
+                id: areaOfWater
+                text: ''
+                color: rgba("#005c7a")
+                text_size: self.size
+                halign: 'left'
+                size: (root.width, 10)
+                font_size: (root.height / 15) * 0.4
+
+
+
+            Label:
+                id: areaOfOil
+                text: ''
+                color: rgba("#005c7a")
+                text_size: self.size
+                halign: 'left'
+                size: (root.width, 10)
+                font_size: (root.height / 15) * 0.4
+
+
+            Label:
+                id: percentOfOil
+                text: ''
+                color: rgba("#005c7a")
+                text_size: self.size
+                halign: 'left'
+                size: (root.width, 10)
+                font_size: (root.height / 15) * 0.4
+
+#                font_size = "20"
+
+            Label:
+                id: lengthOfBoom
+                text: ''
+                color: rgba("#005c7a")
+                text_size: self.size
+                halign: 'left'
+                size: (root.width, 10)
+                font_size: (root.height / 15) * 0.4
+#                font_size = "20"
+#                font_name: 'Gill Sans MT'
+
+
+
+        BoxLayout:
+            id: buttonOverlay
+            background_color: 'white'
+            orientation: 'horizontal'
+#            size: root.width, root.height
+            size_hint_y: None
+            height: self.minimum_height
+            padding: 10
+            spacing: 10
+            Button:
+                id: pickButton
+                text: "Pick an Image!"
+                on_release: FilePicker.open(filechooser.path, filechooser.selection)
+                size_hint: .3, None
+                size: 75, 100
+                border: 15,15,15,15
+                font_size: (root.height / 15) * 0.7
+
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
+
+#                size_hint_x: .3
+#                size: self.texture_size
+                orientation: 'vertical'
+            Button:
+                id: processButton
+                text: "Process!"
+                size_hint: .3, None
+                size: 75, 100
+                border: 15,15,15,15
+                font_size: (root.height / 15) * 0.7
+
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
+#                size_hint_y:.5
+#                size_hint_x: .3
+#                size: self.texture_size
+                on_release: FilePicker.process()
+            Button:
+                id: clearButton
+                text: "Clear!"
+                size_hint: .3, None
+                size: 75, 100
+
+#                background_normal: 'normal.png'
+                background_color: rgba('#E6E6E6')
+                background_down: 'down.png'
+#                background_color: rgba('#F3E6E6')
+                border: 15,15,15,15
+                font_size: (root.height / 15) * 0.7
+#                size_hint_y:.5
+#                size: self.texture_size
+#                size_hint_x: .3
+                on_release: FilePicker.clear(filechooser.path)
+
+
+
+
+
+#        Image:
+#            id: oilImage
+#                source: os.path.join(filechooser.path,  filechooser.selection[0])
+
+<ProcessedImageScreen>:
+    name: "second"
+
+
+
