@@ -1,62 +1,67 @@
+# imports and requirements
+# kivy 2.0.0 - requires atleast kivy 2.0.0 to run sucessfully
+# import platform kivy.utils.platform - to be able to detect the platform that the app is running on
+#(android, ios, windows, linux, macos, etc)
+# import rgba kivy.utils.get_color_from_hex - function to be able to convert colors in hex code to the rgba colorspace
+
+
 #:kivy 2.0.0
 #:import platform kivy.utils.platform
 #:import rgba kivy.utils.get_color_from_hex
 WindowManager:
     FilePickerScreen:
-    ProcessedImageScreen:
+    DataAnalysis:
 
-
+# FilePickerScreen is the screen that allows you to pick an image, and process it. this is where the analytics of the
+#image are shown.
 <FilePickerScreen>:
-    name: "first"
+    name: "FPScreen"
     id: FilePicker
+    # making a box layout to contain all widgets.
     BoxLayout:
-        id: overallLay
-#        size: root.width, root.height
+        id: overallLayout
         orientation: 'vertical'
         height: self.minimum_height
         background_color: 'white'
-        BoxLayout:
-            id: OCTOPASlabel
-            background_color: ''
-#            padding:
-#            height: self.minimum_height
-            size_hint_y: 0.5
-            Image:
-                source: 'OCTOPAS.png'
-#                pos_hint: {'center_x': 2.0/3, 'center_y': .2}
-##                pos_hint: {'center_x': 0.5, 'top_y': 0.75}
-#
-#                size_hint: 1, 1
-                width: self.parent.width
-                height: self.parent.width/self.image_ratio
 
+        # making a box layout, to contain the Dropdown Menu, OCTOPAS Logo, and their icon.
+        BoxLayout:
+            id: headerLayout
+            background_color: ''
+
+
+            # making an image widget, and the source of the widget is set to the logo file.
+            Image:
+                source: 'OCTOPAS1.png'
+                width: self.parent.width/self.image_ratio/6
+#                height: self.parent.height/self.image_ratio/6
                 allow_stretch: True
                 keep_ratio: True
-#                size_hint_x: 1
+
+            # making an image widget, the source of the widget is set to the Icon file
+            Image:
+                source: 'Icon.ico'
+                width: self.parent.width/(8*self.image_ratio)
+                height: self.parent.height/(8*self.image_ratio)
+#                allow_stretch: True
+                keep_ratio: True
+
+        # making an boxlayout, to contain the the file chooser, the analytics, and the buttons.
         BoxLayout:
             id: displayOverlay
             orientation: 'horizontal'
-#            background_color: 'white'
-#            size: root.width, root.height
-#            size_hint_y: 0.9
-
             padding: 10
             spacing: 10
-            FileChooserListView:
 
+            # creates the file chooser, and makes it list view instead of icon view
+            FileChooserListView:
                 id: filechooser
                 rootpath: '/storage/emulated/0/' if platform == 'android' else '/'
                 on_selection: FilePicker.selected(filechooser.selection)
-#                on_entry_added: FilePicker.update_file_list_entry(filechooser, entry)
-#                on_subentry_to_entry:
                 border: (10,10,10,10)
-#                font_size: (root.height / 15) * 0.8
-#                text_size: 50
-#                color: (0.0, 1.0, 1.0, 1.0)
 
-
-
-
+            # creates an image widget to contain the image to be processed.  by default ths source is set to the
+            # 'PleasePickAnImage.png'
             Image:
                 id: OilImage
                 source: 'PleasePickAnImage.png'
@@ -65,6 +70,7 @@ WindowManager:
                 width: self.parent.width
                 height: self.parent.width/self.image_ratio
 
+        # creates a box layout to contain all of the labels, for the analytics.
         BoxLayout:
             id: analysisOverlay
             orientation: 'vertical'
@@ -74,28 +80,26 @@ WindowManager:
             padding: 10
             spacing:  root.height/30
 
-
+            # label for the title, this label is what shows the error messages, what file is chosen, etc.
             Label:
                 id: title
-#                text: "Analytics of Image"
                 color: rgba("#005c7a")
                 text: ''
                 halign: 'left'
                 text_size: self.size
-#                size_hint_x:1
                 size: (root.width, 15)
                 font_size: (root.height / 15) * 0.5
+            # creates a label to display the processing time.
             Label:
                 id: processTime
                 text: ''
                 color: rgba("#005c7a")
                 halign: 'left'
                 text_size: self.size
-#                size_hint_x:1
                 size: (root.width, 10)
                 font_size: (root.height / 15) * 0.4
 
-
+            # creates a label to area of the water
             Label:
                 id: areaOfWater
                 text: ''
@@ -106,7 +110,7 @@ WindowManager:
                 font_size: (root.height / 15) * 0.4
 
 
-
+            # creates a label to display the area of the oil.
             Label:
                 id: areaOfOil
                 text: ''
@@ -116,7 +120,7 @@ WindowManager:
                 size: (root.width, 10)
                 font_size: (root.height / 15) * 0.4
 
-
+            # creates a label to display the area of the oil.
             Label:
                 id: percentOfOil
                 text: ''
@@ -126,8 +130,7 @@ WindowManager:
                 size: (root.width, 10)
                 font_size: (root.height / 15) * 0.4
 
-#                font_size = "20"
-
+            # creates a label to display the length of the boom shown.
             Label:
                 id: lengthOfBoom
                 text: ''
@@ -136,76 +139,55 @@ WindowManager:
                 halign: 'left'
                 size: (root.width, 10)
                 font_size: (root.height / 15) * 0.4
-#                font_size = "20"
-#                font_name: 'Gill Sans MT'
 
-
-
+        # creates a box layout to contain all of the buttons.
         BoxLayout:
             id: buttonOverlay
             background_color: 'white'
             orientation: 'horizontal'
-#            size: root.width, root.height
             size_hint_y: None
-            height: self.minimum_height
+            height: 100 if 100 > root.height/8 else root.height/8
             padding: 10
             spacing: 10
+
+            # creates the Pick an Image Button. this button calls the FilePicker.open function, every time the
+            # button is released.  the inputs for the function are filechooser.path, which provides the path of the
+            # file chosen. the 2nd input is the filechooser.selection, which essentially is the name of the file.
+
             Button:
                 id: pickButton
                 text: "Pick an Image!"
                 on_release: FilePicker.open(filechooser.path, filechooser.selection)
-                size_hint: .3, None
-                size: 75, 100
                 border: 15,15,15,15
-                font_size: (root.height / 15) * 0.7
-
-                background_color: rgba('#E6E6E6')
-                background_down: 'down.png'
-
-#                size_hint_x: .3
-#                size: self.texture_size
+                font_size: ((root.height + root.width) / 30) * 0.7
+                size_hint: .3, 1
+                size: 75, 100
                 orientation: 'vertical'
+
+            # creates the Process Button. this button calls the FilePicker.process function, every time the
+            #button is released.
             Button:
                 id: processButton
                 text: "Process!"
-                size_hint: .3, None
-                size: 75, 100
                 border: 15,15,15,15
-                font_size: (root.height / 15) * 0.7
-
-                background_color: rgba('#E6E6E6')
-                background_down: 'down.png'
-#                size_hint_y:.5
-#                size_hint_x: .3
-#                size: self.texture_size
+                font_size: ((root.height + root.width) / 30) * 0.7
+                size_hint: .3, 1
+                orientation: 'vertical'
                 on_release: FilePicker.process()
+
+
+            # creates the clear button, this button calls the FilePicker.clear function every time the button is released.
             Button:
                 id: clearButton
                 text: "Clear!"
-                size_hint: .3, None
-                size: 75, 100
-
-#                background_normal: 'normal.png'
-                background_color: rgba('#E6E6E6')
-                background_down: 'down.png'
-#                background_color: rgba('#F3E6E6')
                 border: 15,15,15,15
-                font_size: (root.height / 15) * 0.7
-#                size_hint_y:.5
-#                size: self.texture_size
-#                size_hint_x: .3
-                on_release: FilePicker.clear(filechooser.path)
+                font_size: ((root.height + root.width) / 30) * 0.7
+                size_hint: .3, 1
+                size: 75, 100
+                orientation: 'vertical'
+                on_release: FilePicker.clear()
 
 
-
-
-
-#        Image:
-#            id: oilImage
-#                source: os.path.join(filechooser.path,  filechooser.selection[0])
-
-<ProcessedImageScreen>:
+# creates a third screen that allows you to see the analysis of the data; for future enhancements
+<DataAnalysis>:
     name: "second"
-
-
-

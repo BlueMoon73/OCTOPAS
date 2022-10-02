@@ -1,267 +1,328 @@
+#  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #
+#
+#  Author:  Monish Saravana Kumar Divya Sundari
+#
+#  Initial Date:  9/10/2022
+#
+#  Last Updated:  10/1/2022
+#
+#  Description:  The main python source code, for the OCTOPAS Algorithm, as found on
+#                 https://github.com/BlueMoon73/OCTOPAS. OCTOPAS stands for Oil spill Cleanup Through an Optimized
+#                 Pragmatic Automated System. OCTOPAS is a novel system aimed towards automating oil spill clean-ups.
+#                 This is part of a # multi-year (currently year 3) research project, towards improving oil spill
+#                 clean-ups.
+#
+#  Version: OCTOPAS 1.0
+#
+#
+#
+#  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #
+
+# import OS - to be able to manipulate system paths
+# import time - used for the timers, to calculate media processing time.
+# import cv2 - used to import OpenCV, which is the library used to process and analyze the images.
+# import kivy - used to create the GUI
+# import numpy - used to perform calculations, based on the images. used for concatenating arrays, calculations of
+# histograms, finding unique colors, etc. numpy simplifies and optimizes mathematical calculations.
+
+
 import os
 import time
-
+import cv2 as cv
 import kivy
-from kivy import platform
+import numpy as np
 
+# from kivy.app import App - required import to run the application.
+# from config import Config - used to set the configuration of the application, such as how to respond to various inputs
+# from kivy.core.window import Window - used to set the window size, and the window title
+# from kivy.uix.screenmanager import ScreenManager, Screen - used to create the screens, and to switch between them
+# from matplotlib import pyplot as plt - used to plot the histograms; for future enhancements
+# from kivy.utils import get_color_from_hex as rgba - used for converting hexadecmical colors into the rgba format
+# from sklearn import cluster - used to perform the clustering of the colors
+
+
+from kivy.app import App
+from kivy.config import Config
+from kivy.core.window import Window
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.utils import get_color_from_hex as rgba
+# from matplotlib import pyplot as plt
+from sklearn import cluster
+
+# set minimum version of kivy to 2.0.0
 kivy.require('2.0.0')
 
-from kivy.config import Config
-
+# setting  configuration of how to respond to other mouse buttons that are not left-click
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
-import cv2 as cv
-import numpy as np
-from kivy.app import App
-from kivy.uix.screenmanager import ScreenManager, Screen
-from matplotlib import pyplot as plt
-from sklearn import cluster
-from kivy.core.window import Window
 
+# set the window color to white
 Window.clearcolor = (1, 1, 1, 1)
-from kivy.utils import get_color_from_hex as rgba
-
-if platform == "android":
-    from android.permissions import request_permissions, Permission
-
-    request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
 
 
-class oilSpillImage:
+# class for the actual image processing algorithm. this class can be called, anytime an image needs to be processed.
+# this is a separate class, and not coded into the screen class because there may be multiple images that get processed
+# at the same time.
+class OilSpillImage:
+
+    # initializes the class, and declares the Width Scale, Height Scale, Combined Scale, and the image variables.
+    # the input for this function is just the image.
     def __init__(self, img):
         self.scaleW = None
         self.scaleH = None
         self.combinedScale = None
         self.img = img
 
-    def scale(self, img, scale=0.2):
-        dim1 = int(img.shape[1] * scale)
-        dim2 = int(img.shape[0] * scale)
-        dims = (dim1, dim2)
-        return cv.resize(img, dims, interpolation=cv.INTER_AREA)
+    # function to distinguish the oil from the water. this function takes in the image, and the number of colors to
+    # quantize.  the default is 2, which is water and oil, but it can be changed when the function is called.
+    # it uses the kmeans algorithm from scikit learn, in order to separate the colors and group them.
 
-    def findOil(self, img, number=2):
-        startTime = time.perf_counter()
-        # print(startTime)
-        print("xxxxxxxxxxxx")
+    def findOil(self, img, numOfColors=2):
+
+        # convert the image from the BGR colorspace to the HSV color space. this is done because the HSV color space is
+        # easier to work with, for distinguishing between oil and water.
         img = cv.cvtColor(img, cv.COLOR_BGR2HSV) / 255
-        # set number of colors
 
-        # quantize to 2 colors using kmeans
+        # quantize to 2 colors using kmeans. this is the majority of the code that is used to distinguish between oil
+        # and water.
         h, w, c = img.shape
         img2 = img.reshape(h * w, c)
-        kmeans_cluster = cluster.KMeans(n_clusters=number)
+        kmeans_cluster = cluster.KMeans(n_clusters=numOfColors)
         kmeans_cluster.fit(img2)
         cluster_centers = kmeans_cluster.cluster_centers_
         cluster_labels = kmeans_cluster.labels_
 
         # need to scale back to range 0-255 and reshape
-        img3 = cluster_centers[cluster_labels].reshape(h, w, c) * 255
-        img3 = img3.astype('uint8')
-
-        # cv.imshow('reduced colors', img3)
-        # cv.waitKey(0)
-        # cv.destroyAllWindows()
+        clusteredImage = cluster_centers[cluster_labels].reshape(h, w, c) * 255
+        clusteredImage = clusteredImage.astype('uint8')
 
         # reshape img to 1 column of 3 colors
         # -1 means figure out how big it needs to be for that dimension
-        img4 = img3.reshape(-1, 3)
+        img4 = clusteredImage.reshape(-1, 3)
+        # shows the clustered image; used for debugging
+        ## cv.imshow('img4', clusteredImage)
 
         # get the unique colors
         colors, counts = np.unique(img4, return_counts=True, axis=0)
-        # print(colors)
-        # print("xxx")
-        # print(counts)
         unique = zip(colors, counts)
 
-        # function to convert from r,g,b to hex
-        def encode_hex(color):
-            b = color[0]
-            g = color[1]
-            r = color[2]
-            hex = '#' + str(bytearray([r, g, b]).hex())
-            print(hex)
-            return hex
+        # function to convert from r,g,b to hex; not used yet; for future enhancements
+        ## def encode_hex(BGRcolor):
+        ##     b = BGRcolor[0]
+        ##     g = BGRcolor[1]
+        ##     r = BGRcolor[2]
+        ##     hexColor = '#' + str(bytearray([r, g, b]).hex())
+        ##     print(hexColor)
+        ##     return hexColor
 
-        # plot each color
-        fig = plt.figure()
-        for i, uni in enumerate(unique):
-            color = uni[0]
-            count = uni[1]
-            plt.bar(i, count, color=encode_hex(color))
+        # plot each color; for future enhancements
+        ## fig = plt.figure()
+        ## for i, uni in enumerate(unique):
+        ##     color = uni[0]
+        ##     count = uni[1]
+        ##     plt.bar(i, count, color=encode_hex(color))
 
-        # show and save plot
-        # plt.show()
-        # fig.savefig('barn_color_historgram.png')
-        # plt.close(fig)
+        # show and save plot; for future enhancements
+        ## plt.show()
+        ## fig.savefig('barn_color_histogram.png')
+        ## plt.close(fig)
 
-        endTime = time.perf_counter()
-        # print(endTime)
+        # get the height and width of the image (in pixels)
+        (Hpx, Wpx) = clusteredImage.shape[:2]
 
-        processingTime = endTime - startTime
+        # this is set to the dimensions [Length x Width] of the container, in which the oil spill is simulated. in a
+        # real world use case, this can be set to the dimensions/area that the drone can cover with a singular image.
+        # this is configurable. the container dimensions in the simulation, is 88cm x 45cm.
 
-        (Hpx, Wpx) = img3.shape[:2]
         Wcm = 88
         Hcm = 45
 
+        # calculate the scale of the image, in pixels/cm
         self.scaleH = Hpx / Hcm
         self.scaleW = Wpx / Wcm
-        print(str(self.scaleH), str(self.scaleW))
-        self.combinedScale = (self.scaleW + self.scaleW) / 2
+
+        # prints the scales of the image; for future enhancements and debugging
+        ## print(str(self.scaleH), str(self.scaleW))
+
+        # averaging the scales of the image to calculate the combined scale***
+        # for revision
+        self.combinedScale = (self.scaleW + self.scaleH) / 2
+
+        # calculating the area of water in the image in cm^2
         totalWaterArea = Hcm * Wcm
-        # cv.imshow('final', img3)
 
-        return img3, processingTime, totalWaterArea, self.scaleH, self.scaleW, self.combinedScale
+        # returning the clustered image, the calculated total water area, and the scales of the image.
+        print(self.combinedScale)
+        print(Hpx)
+        print(Wpx)
+        return clusteredImage, totalWaterArea, self.scaleH, self.scaleW, self.combinedScale
 
-    def makePerimeters(self, real, reduced, areaReq=3000):
-        reduced = cv.cvtColor(reduced, cv.COLOR_BGR2GRAY)
-        cv.imshow('graty', reduced)
+    # function to interpret the clustered image. the function takes in the real (original image), the clustered image
+    # and the area requirement for the oil contours. the default area requirement is set to 1000 pixels. an oil spill
+    # pocket is considered "significant" if it's area is over 3000 pixels. Micro oil spill pockets,
+    # less than 1000 pixels, are considered insignificant. *** for revision
+    # this function also creates the booms and displays them on screen.
 
-        ###CODE  THAT WORKS###
-        # (thresh, reduced) = cv.threshold(reduced, 90, 255, cv.THRESH_BINARY)
-        reduced = cv.adaptiveThreshold(reduced, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 3, 0)
-        # cv.imshow('thresh', reduced)
-        contours, hierarchies = cv.findContours(reduced, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        # cv.imshow('v2',reduced)
+    def makePerimeters(self, real, clusteredImage, areaReq=1000):
 
-        final = real;
+        # the colorspace of the image is converted to grayscale
+        grayscaleImage = cv.cvtColor(clusteredImage, cv.COLOR_BGR2GRAY)
+
+        # thresholding the grayscale image; inputs are the grayscale image, the output threshold value, the type of
+        # adaptive thresholding, the threshold method, the pixel neighborhood size, and the constant to be subtracted.
+        # the image is now a binary image (black and white image)
+
+        binaryImage = cv.adaptiveThreshold(grayscaleImage, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                           cv.THRESH_BINARY, 3, 0)
+
+        # finds the contours and the hierarchy of the binary image
+        contours, hierarchies = cv.findContours(binaryImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+        # declares variables and arrays to be used
+        # final - makes a copy of the real image, the real image is never modified, only the final image is modified
+        # throughout the algorithm
+        # *** for revision
+        final = real
         maxArea = -1
         totalOilArea = 0
         oil_contours = []
-        maxContournumber = None
-        maxContour = None
-        hull = None
-        length = len(contours)
         uni_hull = []
+        kernelFactor = 11
+        maxContourIndex = None
+        maxContour = None
+
+        # go through the contours and find which ones meet the area requirement (OPS), and then add them to the
+        # oil_contours array. draws all the contours that meet the area requirement. *** for revision
         for i in range(len(contours)):
 
+            # assign the area variable to the area of the current contour
             area = cv.contourArea(contours[i])
+
+            # *** for revision OPS
             if area > areaReq:
-                # epsilon = 0.006 * cv.arcLength(contours[i], True)
-                # approx = cv.approxPolyDP(contours[i], epsilon, True)
-                # final = cv.drawContours(final, [approx], 0, (255, 0, 0), -1)
 
-                # hull = cv.convexHull(contours[i])
-                # hull_list.append(hull)
-
-                oil_contours.append(contours[i])
-
-                epsilon = 0.0008 * cv.arcLength(contours[i], True)
-                poly = cv.approxPolyDP(contours[i], epsilon, True)
-                # final = cv.drawContours(final, [contours], -1, (255, 200, 0), -1)
-
-                final = cv.drawContours(final, poly, -1, (255, 0, 0), -1)
-
-                kernel = np.ones((9, 9), np.uint8)
-                final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
-                final = np.uint8(final)
+                # total oil area is increased as more contours are added
                 totalOilArea = totalOilArea + area
 
-            if area > maxArea:
-                maxArea = area
-                maxContournumber = i
-                maxContour = contours[i]
+                # since the contour area is greater than the area requirement, it is considered significant,
+                # and so it is added to the oil_contours array
+                oil_contours.append(contours[i])
 
-                # kernel = np.ones((5, 5), np.uint8)
-                # # dilation = cv.dilate(final, kernel, iterations=1)
-                # kernel = np.ones((10, 10), np.uint8)
-                # # final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
-                # final = np.uint8(final)
-                # final = cv.medianBlur(final, (3, 3))
-                # final = cv.GaussianBlur(final, (1, 1))
+                # approximates the contour to a polygon *** for revision
+                polyArcLen = 0.0008 * cv.arcLength(contours[i], True)
+                poly = cv.approxPolyDP(contours[i], polyArcLen, True)
 
-        for i in range(len(contours)):
+                # draw the approximated contour on the image, in dark blue (same color as logo). the contour is also
+                # filled in completely with dark blue. BGR  of dark blue is (122, 92, 0). the countours are drawn one
+                # by one a new contour is added each iteration of the 'for loop'
+                final = cv.drawContours(final, [poly], -1, (122, 92, 0), -1)
 
-            area = cv.contourArea(contours[i])
-            if area > areaReq:
-                hull = cv.convexHull(contours[i])
-                cv.drawContours(final, [hull], -1, (0, 0, 255), 4)
-            else:
-                continue
+                # draws the image; for future enhancements and debugging
+                ## final = cv.drawContours(final, poly, -1, (255, 0, 0), 8)
 
-        # size of contour points
+                # Smoothing the image, using a morphological closing operation. the kernel is a 11x11 matrix, but can
+                # be changed if the kernelFactor variable is changed. *** for revision , why 11x11, move out of loop
+                kernel = np.ones((kernelFactor, kernelFactor), np.uint8)
+                final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
+                final = np.uint8(final)
+
+        # go through the oil contours array, and make a hull for each one. the hull is the smallest convex polygon that
+        # can fit around all the given points in an array.
+        for i in range(len(oil_contours)):
+            # make a hull for each oil spill and draw it in red, with a width of 4 pixels
+            hull = cv.convexHull(oil_contours[i])
+            cv.drawContours(final, [hull], -1, (0, 0, 255), 4)
+
+        # the number of oil spills is the length of the oil_contours array
         numOfSpills = len(oil_contours)
-        # concatinate poits form all shapes into one array
-        cont = np.vstack([oil_contours[i] for i in range(numOfSpills)])
-        hull = cv.convexHull(cont)
-        uni_hull.append(hull)  # <- array as first element of list
-        cv.drawContours(final, uni_hull, -1, (165, 255, 0), 4);
 
+        # combine all the points of all the oil spills into oilPoints
+        oilPoints = np.vstack([oil_contours[i] for i in range(numOfSpills)])
+
+        # make a hull of all the oil spills, this will be the boom
+        hull = cv.convexHull(oilPoints)
+        uni_hull.append(hull)
+
+        # draw the hull in blueish green, with a width of 4 pixels. BGR of blue-ish green is (165, 255, 0)
+        cv.drawContours(final, uni_hull, -1, (165, 255, 0), 4)
+
+        # calculate the length of the boom in pixels
         hullLengthinPX = cv.arcLength(hull, closed=True)
+
+        # use the combined scale to calculate the length of the boom in cm *** for revision
         hullLengthinCM = hullLengthinPX / self.combinedScale
+
+        # return the final image, the contours, the total oil area, and the hull length in cm
         return final, contours, totalOilArea, hullLengthinCM
 
-    # def label(self, finalimg, ellipse, totalOilArea, circlerad, largestContourArea, hull, px, cm):
-    #     scale = px / cm
-    #
-    #     # ellipse perimeter
-    #     (x, y), (width, height), angle = ellipse
-    #     a = width / 2
-    #     a = a / scale
-    #     b = width / 2
-    #     b = b / scale
-    #     h = (a - b) ** 2 / (a + b) ** 2
-    #
-    #     # ellipse boom
-    #     perimeterOfEllipseBoominPX = (math.pi * (a + b) * (1 + (3 * h) / (10 + np.sqrt((4 - (3 * h))))))
-    #     perimeterOfEllipseBoominCM = perimeterOfEllipseBoominPX
-    #
-    #     # circle boom
-    #     perimeterOfCircleBoominPX = (2 * math.pi * circlerad)
-    #     perimeterOfCircleBoominCM = (perimeterOfCircleBoominPX / scale);
-    #
-    #     # oil area
-    #     totalOilAreainCM2 = totalOilArea / (scale * scale)
-    #     largestContourAreainCM = largestContourArea / (scale * scale)
-    #
-    #     # hull length
-    #     hullLengthinPX = cv.arcLength(hull, closed=True)
-    #     hullLengthinCM = hullLengthinPX / scale
-    #
-    #     # percent of oil
-    #     containerArea = cm ** 2 * math.pi
-    #     percentOfOil = totalOilAreainCM2 * 100 / containerArea
-    #
-    #     # labeling
-    #     cv.putText(finalimg, ('Total Oil Area: ' + str((totalOilAreainCM2)) + ' cm'), (0, 15), cv.FONT_HERSHEY_SIMPLEX,
-    #                0.5,
-    #                (255, 0, 0), 2)
-    #     cv.putText(finalimg, ('Largest Patch Area: ' + str((largestContourAreainCM)) + ' cm'), (0, 30),
-    #                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    #     cv.putText(finalimg, ('Length of Ellipse Boom: ' + str((perimeterOfEllipseBoominCM)) + ' cm'), (0, 45),
-    #                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 128), 2)
-    #     cv.putText(finalimg, ('Length of Circle Boom: ' + str((perimeterOfCircleBoominCM)) + ' cm'), (0, 60),
-    #                cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    #     cv.putText(finalimg, ('Length of Hull Boom: ' + str((hullLengthinCM)) + ' cm'), (0, 75),
-    #                cv.FONT_HERSHEY_SIMPLEX,
-    #                0.5, (165, 255, 0), 2)
-    #     cv.putText(finalimg, ('Percent of Oil in Container: ' + str((percentOfOil)) + ' %'), (0, 90),
-    #                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-    #     return finalimg
 
-    # def analyze(self, processedIMG):
+# function to update the file list entry, input requires the file chooser widget, and the file list entry.
+def update_file_list_entry(file_chooser, file_list_entry, *args):
+    # sets the color of the file list entry to dark blue
+    file_list_entry.ids['filename'].color = rgba("#005c7a")
 
 
+# this is the screen that allows you to pick an image, and process it. the analytics of the image, are all displayed on
+# this screen. this is the class for the GUI, not the processing.
 class FilePickerScreen(Screen):
+
+    # initializes the screen, and declares the necessary variables
     def __init__(self, **kwargs):
+        self.MenuObstacleDetectionButton = None
+        self.MenuOilSpillButton = None
+        self.MenuButton = None
+        self.processingDropdown = None
+        self.headerLayout = None
+        self.clearButton = None
+        self.processButton = None
+        self.pickButton = None
+        self.percentOfOilLabel = None
+        self.lengthOfBoomLabel = None
+        self.areaOfWaterLabel = None
+        self.areaOfOilLabel = None
+        self.title = None
+        self.processTimeLabel = None
+        self.filePicker = None
+        self.OilPic = None
         self.processPic = None
         self.scaleW = None
         self.scaleH = None
         self.combinedScale = None
+        self.fileName = None
 
         super(FilePickerScreen, self).__init__(**kwargs)
-        print(len(self.children))
-        print(len(self.children))
 
-    def _finish_init(self):
-        # self.layout = self.ids["displayOverlay"]
+        # for debugging purposes
+        ## print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        ## print(len(self.children))
+        ## print(len(self.children))
+
+    # setup-function, that cannot be executed in __init__ because the widgets are not created yet. this function
+    # assigns the variables, with their respective widget. properties of the widgets are also set in this function.
+
+    def setup(self):
+
+        self.headerLayout = self.ids["headerLayout"]
+
+        # sets the self.OilPic to the image widget, using its ID. also sets properties of the widget
         self.OilPic = self.ids["OilImage"]
         self.OilPic.nocache = True
-        # self.OilPic.size = self.parent.width, self.parent.width/self.image_ratio
 
+        # sets button variable to their respective button widgets to the button widget, using its ID;
+        # also sets properties of the buttons
+        self.pickButton = self.ids["pickButton"]
+        self.pickButton.background_color = rgba('#005c7a')
+        self.processButton = self.ids["processButton"]
+        self.processButton.background_color = rgba('#005c7a')
+        self.clearButton = self.ids["clearButton"]
+        self.clearButton.background_color = rgba('#005c7a')
+
+        # sets the file picker widget to the file picker widget, using its ID; calls the update_file_list_entry function
+        # every time an entry/subentry is added to the file picker
         self.filePicker = self.ids["filechooser"]
-        self.filePicker.bind(on_entry_added=self.update_file_list_entry)
-        self.filePicker.bind(on_subentry_to_entry=self.update_file_list_entry)
-        # self.layout.add_widget(self.OilPic)
+        self.filePicker.bind(on_entry_added=update_file_list_entry)
+        self.filePicker.bind(on_subentry_to_entry=update_file_list_entry)
+
+        # sets the labels to their respective label widgets, using their IDs; also sets properties of the labels
         self.title = self.ids["title"]
         self.processTimeLabel = self.ids["processTime"]
         self.areaOfWaterLabel = self.ids["areaOfWater"]
@@ -269,109 +330,147 @@ class FilePickerScreen(Screen):
         self.percentOfOilLabel = self.ids["percentOfOil"]
         self.lengthOfBoomLabel = self.ids["lengthOfBoom"]
 
-        # self.layout.add_widget(self.ProcessedImage)
-        print("innit finished")
+        # prints "setup finished"; for debugging
+        ## print("setup finished")
 
+    # function called when a file is selected from the file picker. the name of the file is displayed on screen and is
+    # set to the self.fileName variable. the input for this function is the filename.
     def selected(self, filename):
-        self.fileName = filename
-        # print("selected: %s" % filename[0])
+        try:
+            self.title.text = "Selected: " + filename[0]
+            self.fileName = filename
+        except IndexError:
+            pass
+        except:
+            self.title.text = "An error occurred"
 
     def init_widget(self, *args):
 
+        # sets the fc to the filechooser, using its ID
         fc = self.ids['filechooser']
-        fc.bind(on_entry_added=self.update_file_list_entry)
-        fc.bind(on_subentry_to_entry=self.update_file_list_entry)
 
-    def update_file_list_entry(self, file_chooser, file_list_entry, *args):
-        file_list_entry.font_size = 20
-        # file_list_entry.
-        file_list_entry.ids['filename'].color = rgba("#005c7a")
-        # file_list_entry.children[0].color = rgba("#005c7a")  # File Names
-        # file_list_entry.children[1].color = rgba("#005c7a")
-        # file_list_entry.ids['filesize'].color = rgba("#005c7a")
+        # calls the update file list entry function, every time an entry or subentry is added to the file picker
+        fc.bind(on_entry_added=update_file_list_entry)
+        fc.bind(on_subentry_to_entry=update_file_list_entry)
+
+    # function to execute when the pick button is pressed. the function will try to open the selected image. this
+    # if the image is not a jpg, png, or bmp, it will not open. if the image is opened, it will show the image on screen
+    # this function will also rotate the image, if it is vertical.the inputs for the file are the path, and the filename
+    # the inputs for this function are the path, and the filename.
 
     def open(self, path, fileName):
 
+        # tries to open the image, but if an error rises, it will print the error.
         try:
+
+            # reads the image and opens file
             file = os.path.join(path, fileName[0])
             pic = cv.imread(file)
+
+            # finding the height and width of the image in pixels
             (h, w) = pic.shape[:2]
-            print("trying to open")
-            print(file)
+
+            # if the height is greater than the width, the image is rotated 90 degrees clockwise
             if h > w:
                 pic = cv.rotate(pic, cv.ROTATE_90_CLOCKWISE)
                 cv.imwrite('originalImage.png', pic)
-                print('rotated')
-                print(h, w)
-                # self.OilPic.reload()
+
+            # writes the image to a file named originalImage.png
+            # the file is saved on your computer
             cv.imwrite('originalImage.png', pic)
+
+            # the source of the image displayed on screen is set to the originalImage.png file
             self.OilPic.source = ""
             self.OilPic.source = 'originalImage.png'
 
+        # if an errror rises, at it is an IndexError, it will display "Please Select an Image" on the screen.
         except IndexError:
             self.title.text = "Please select an Image!"
+
+        # if it is any other error, it will display "An Error has Occurred" on the screen.
         except:
-            self.title.text = "An error occured!"
+            self.title.text = "An Error has Occurred!"
 
-    def scale(self, img, scale=0.2):
-        dim1 = int(img.shape[1] * scale)
-        dim2 = int(img.shape[0] * scale)
-        dims = (dim1, dim2)
-        return cv.resize(img, dims, interpolation=cv.INTER_AREA)
-
+    # function to execute when the process button is pressed. the function will process the given image, and display
+    # the respective analytics. it will also display the time it took to process the image.
     def process(self):
 
+        # gets the file that is displayed on the screen
         file = self.OilPic.source
-        if (file != "PleasePickAnImage.png"):
+
+        # process all images except the default image
+        if file != "PleasePickAnImage.png":
+
+            # start the timer
             StartTime = time.perf_counter()
 
+            # read the image
             pic = cv.imread(file)
-            self.processPic = oilSpillImage(pic)
+
+            # create an instance of the OilSpillImage class
+            self.processPic = OilSpillImage(pic)
             print("file being processed" + file)
 
-            reducedColors, processingTime, totalWaterAreainCM2, self.scaleH, self.scaleW, self.combinedScale = self.processPic.findOil(
+            # finds the oil in the image
+            reducedColors, totalWaterAreaInCM2, self.scaleH, self.scaleW, self.combinedScale = self.processPic.findOil(
                 pic)
 
-            final, contours, totalOilAreainPx, hullLengthinCM3 = self.processPic.makePerimeters(pic, reducedColors,
+            #  makes the oil spill visible, and gets all the analytics
+            final, contours, totalOilAreaInPx, hullLengthinCM3 = self.processPic.makePerimeters(pic, reducedColors,
                                                                                                 areaReq=1000)
+            # save the processed image
             cv.imwrite('processed_pic.jpg', final)
-            # cv.imshow('processed_pic.jpg', final)
-            totalOilAreainCM2 = totalOilAreainPx / self.scaleH
-            totalOilAreainCM2 = totalOilAreainCM2 / self.scaleW
-            totalOilAreainCM2 = round(totalOilAreainCM2, 2)
 
-            totalOilPercent = (totalOilAreainCM2 / totalWaterAreainCM2) * 100
+            # finding oil area in cm^2 using the scale
+            totalOilAreaInCM2 = totalOilAreaInPx / self.scaleH
+            totalOilAreaInCM2 = totalOilAreaInCM2 / self.scaleW
+            totalOilAreaInCM2 = round(totalOilAreaInCM2, 2)
+
+            # finding oil percent of the entire image
+            totalOilPercent = (totalOilAreaInCM2 / totalWaterAreaInCM2) * 100
             totalOilPercent = round(totalOilPercent, 2)
 
+            # finding the length of boom needed
             hullLengthinCM3 = round(hullLengthinCM3, 2)
-            # self.combinedScale = (self.scaleW + self.scaleH) / 2
-            # print(processingTime)
 
-            # processingTime = round(processingTime, 2)
-            print(processingTime)
+            # saves the pic to local storage
             self.OilPic.source = 'processed_pic.jpg'
+
+            # reloads the image to the screen
             self.OilPic.reload()
 
+            # displaying analytics on the screen
             self.title.text = "Image Analytics:  "
-            self.processTimeLabel.text = "The time taken to process the image was: " + str(processingTime) + " seconds!"
-            self.areaOfWaterLabel.text = "The area of water is " + str(totalWaterAreainCM2) + " square centimeters"
-            self.areaOfOilLabel.text = "The area of oil is " + str(totalOilAreainCM2) + " square centimeters"
+            self.areaOfWaterLabel.text = "The area of water is " + str(totalWaterAreaInCM2) + " square centimeters"
+            self.areaOfOilLabel.text = "The area of oil is " + str(totalOilAreaInCM2) + " square centimeters"
             self.percentOfOilLabel.text = "The percent of oil in the water is " + str(totalOilPercent) + "%"
             self.lengthOfBoomLabel.text = "The length of the boom is " + str(hullLengthinCM3) + " centimeters"
+
+            # ending the timer
             endTime = time.perf_counter()
+
+            # calculating the entire time taken to process the image
             processingTime = endTime - StartTime
+
+            # rounding the time to 2 decimal places
             processingTime = round(processingTime, 2)
+
+            # displaying the time it took to process the image
             self.processTimeLabel.text = "The time taken to process the image was: " + str(processingTime) + " seconds!"
         else:
+            # if the same image is the same as the default image, tell the user to select an image
             self.title.text = "Please select an Image!"
 
-    def clear(self, path):
+    # function to clear the image and analytics from the screen. this function is called when the clear button is
+    # pressed
+    def clear(self):
         # print("cleared!")
-        self.title.text = "Image Succesfully Cleared!"
-        self.OilPic.source = 'PleasePickAnImage.png'
-        self.clearText()
 
-    def clearText(self):
+        # clears the image and sets it to the default image. also displays that the process was a success
+        self.OilPic.source = 'PleasePickAnImage.png'
+        self.title.text = "Image Succesfully Cleared!"
+
+        # clear the analytics from the screen
         self.processTimeLabel.text = ''
         self.areaOfWaterLabel.text = ''
         self.areaOfOilLabel.text = ''
@@ -379,23 +478,50 @@ class FilePickerScreen(Screen):
         self.lengthOfBoomLabel.text = ''
 
 
-class ProcessedImageScreen(Screen):
+# class to analyze the data of the experiment, and compare before/after images; for future enhancements
+class DataAnalysis(Screen):
     pass
 
 
+class ObstacleDetection(Screen):
+    pass
+
+
+# screen manager class, to be able to swap screens. currently not necessary, but will be used in future enhancements
 class WindowManager(ScreenManager):
     pass
 
 
-class OctopasAPP(App):
+# the OCTOPAS class, this is what runs all the previous code.
+class OCTOPASApp(App):
 
     def build(self):
+        # makes a screen manager object
         sm = WindowManager()
-        aids = FilePickerScreen(name='first')
-        aids._finish_init()
-        sm.add_widget(aids)
+
+        # creates a screen for the file picker, and names it 'first'
+        FPScreen = FilePickerScreen(name='FPScreen')
+
+        IAN = ObstacleDetection(name='IAN')
+
+        # sets up the file picker screen
+        FPScreen.setup()
+
+        # adds the file picker screen to the screen manager
+        sm.add_widget(FPScreen)
+
+        sm.add_widget(IAN)
+
+        self.icon = 'Icon.ico'
+
+        # sets the title of the window
+        self.title = 'OCTOPAS Algorithm'
+
+        # returns the screen manager
         return sm
 
 
+# runs the OCTOPAS class
 if __name__ == '__main__':
-    OctopasAPP().run()
+    # runs the app
+    OCTOPASApp().run()
