@@ -17,58 +17,203 @@ WindowManager:
 <FilePickerScreen>:
     name: "FPScreen"
     id: FilePicker
-    # making a box layout to contain all widgets.
-    BoxLayout:
-        id: overallLayout
-        orientation: 'vertical'
-        height: self.minimum_height
-        background_color: 'white'
+#    Background:
+#        source: "yes.jpg"
+#        keep_ratio: True
+#        allow_stretch: True
+#        size: self.parent.size
+    FloatLayout:
+        id: mainLayout
 
-        # making a box layout, to contain the Dropdown Menu, OCTOPAS Logo, and their icon.
-        BoxLayout:
-            id: headerLayout
-            background_color: ''
+        # making an image widget, and the source of the widget is set to the logo file.
+        Label:
+            id: timeLabel
+            text: 'Time: '
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.43,'x':.8 }
+            font_size: (root.height / 15) * .8
 
 
-            # making an image widget, and the source of the widget is set to the logo file.
-            Image:
-                source: 'OCTOPAS1.png'
-                width: self.parent.width/self.image_ratio/6
-#                height: self.parent.height/self.image_ratio/6
-                allow_stretch: True
-                keep_ratio: True
 
-            # making an image widget, the source of the widget is set to the Icon file
-            Image:
-                source: 'Icon.ico'
-                width: self.parent.width/(8*self.image_ratio)
-                height: self.parent.height/(8*self.image_ratio)
+        Image:
+
+            id: logo
+            canvas.after:
+                Color:
+                    rgba: rgba('#005c7a')
+                Line:
+                    width: 2
+                    points: self.center_x-mainLayout.width/2, logo.center_y - logo.parent.width/5 / logo.image_ratio, self.center_x+mainLayout.width/2+100, logo.center_y - logo.parent.width/5 / logo.image_ratio
+            source: 'OCTOPAS.png'
+            size_hint_x: None
+            width: self.parent.width/4.6
+            pos_hint:{'top': 1.43,'right':.6}
+            allow_stretch: True
+            keep_ratio: True
+
+        # making an image widget, the source of the widget is set to the Icon file
+        Image:
+            id: icon
+            canvas.after:
+                Color:
+                    rgba: rgba('#005c7a')
+                Line:
+                    width: 2
+                    points: logo.center_x-(logo.width - icon.width) , logo.center_y - logo.parent.width/5 / logo.image_ratio, logo.center_x-(logo.width-icon.width), logo.center_y + logo.parent.width/5 / logo.image_ratio + 25
+                Line:
+                    width: 2
+                    points: logo.center_x + (logo.width), logo.center_y - logo.parent.width/5 / logo.image_ratio, logo.center_x + logo.width, logo.center_y + logo.parent.width/5 / logo.image_ratio + 25
+            source: 'Icon.ico'
+            size_hint_x: None
+            width: self.parent.width/18
+            allow_stretch: True
+            keep_ratio: True
+            pos_hint:{'top': 1.43,'right':.65}
+
+
+        Label:
+            id: originalImageLabel
+            text: 'Oil Spill \n Drone Image: '
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.25,'right':.7 }
+            font_size: (root.height / 15) * 0.5
+        Label:
+            id: clusteredImageLabel
+            text: '1. Clustered Image'
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.1,'right':.67 }
+            font_size: (root.height / 23) * 0.5
+        Label:
+            id: binaryImageLabel
+            text: '2. Grayscale Image'
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.1,'right':.82 }
+            font_size: (root.height / 23) * 0.5
+        Label:
+            id: clusteredImageLabel
+            text: '3. Binary Image'
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.1,'right':0.97 }
+            font_size: (root.height / 23) * 0.5
+        Label:
+            id: processedImageLabel
+            text: 'Processed Image: '
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': .89,'right':.7 }
+            font_size: (root.height / 15) * 0.5
+
+        # making an image widget, the source of the widget is
+        Image:
+            id: originalImage
+            source: 'drone.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/6 if self.source == "drone.png" else self.parent.width/4
+            pos_hint:{'top': 1.25,'right':1}
+
+        Image:
+            id: binaryImage
+            source: 'blackandwhite.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/6.5 if self.source == "blackandwhite.png" else self.parent.width/7
+            pos_hint:{'top': 1,'right':1}
+        Image:
+            id: grayscaleImage
+            source: 'grayscale.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/7.5 if self.source == "grayscale.png" else self.parent.width/7
+            pos_hint:{'top': 1,'right':.85}
+        Image:
+            id: clusteredImage
+
+            source: 'clustered.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/7 if self.source == "clustered.png" else self.parent.width/7
+            pos_hint:{'top': 1,'right':.7}
+
+        # creates an image widget to contain the image to be processed.  by default ths source is set to the
+        # 'PleasePickAnImage.png'
+        Image:
+            id: processedImage
+            source: 'processed.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/6 if self.source == "processed.png" else self.parent.width/4
+            pos_hint:{'top': .77,'right':1}
+        Image:
+            id: imageLegend
+            source: 'imageLegend.png'
+            keep_ratio: True
+            allow_stretch: True
+            size_hint_x: None
+            width: self.parent.width/4.5
+            pos_hint:{'top': .76,'right':.74}
+
+
+        FileChooserListView:
+            id: filechooser
+
+            canvas.after:
+                Color:
+                    rgba: rgba('#005c7a')
+                Line:
+                    width: 2
+                    rectangle: self.x, self.y, self.width, self.height-25
+                Line:
+                    width: 2
+                    points: self.center_x-self.width - self.x , self.center_y - self.height/2, self.center_x + self.width - self.x, self.center_y-self.height/2
+            size_hint_x: None
+            width: self.parent.width/3
+            size_hint_y: .35
+            rootpath: '/storage/emulated/0/' if platform == 'android' else '/'
+            on_selection: FilePicker.selected(filechooser.selection)
+            border: (10,10,10,10)
+            pos_hint:{'top': .85 ,'right':.41    }
+        Label:
+            id: FileChooserTitle
+            text: 'Please Pick an Image!'
+            color: rgba("#005c7a")
+            halign: 'center'
+            size_hint_x: None
+            height: self.size[1]
+            pos_hint:{'top': 1.35,'right':.3 }
+            font_size: (root.height / 17) * 0.5
+
+#            # creates an image widget to contain the image to be processed.  by default ths source is set to the
+#            # 'PleasePickAnImage.png'
+#            Image:
+#                id: OilImage
+#                source: 'PleasePickAnImage.png'
+#                keep_ratio: True
 #                allow_stretch: True
-                keep_ratio: True
-
-        # making an boxlayout, to contain the the file chooser, the analytics, and the buttons.
-        BoxLayout:
-            id: displayOverlay
-            orientation: 'horizontal'
-            padding: 10
-            spacing: 10
-
-            # creates the file chooser, and makes it list view instead of icon view
-            FileChooserListView:
-                id: filechooser
-                rootpath: '/storage/emulated/0/' if platform == 'android' else '/'
-                on_selection: FilePicker.selected(filechooser.selection)
-                border: (10,10,10,10)
-
-            # creates an image widget to contain the image to be processed.  by default ths source is set to the
-            # 'PleasePickAnImage.png'
-            Image:
-                id: OilImage
-                source: 'PleasePickAnImage.png'
-                keep_ratio: True
-                allow_stretch: True
-                width: self.parent.width
-                height: self.parent.width/self.image_ratio
+#                width: self.parent.width
+#                height: self.parent.width/self.image_ratio
 
         # creates a box layout to contain all of the labels, for the analytics.
         BoxLayout:
@@ -76,80 +221,91 @@ WindowManager:
             orientation: 'vertical'
             background_color: 'white'
             size_hint_y: None
-            height: self.minimum_height
-            padding: 10
-            spacing:  root.height/30
+            spacing:  root.height/25
+            pos_hint:{'top': .36,'right':.67}
 
             # label for the title, this label is what shows the error messages, what file is chosen, etc.
             Label:
                 id: title
-                color: rgba("#005c7a")
                 text: ''
+                color: rgba("#005c7a")
                 halign: 'left'
-                text_size: self.size
-                size: (root.width, 15)
-                font_size: (root.height / 15) * 0.5
+                size_hint_x: None
+                pos_hint:{'top': 1.2 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 10) * 0.4
+
             # creates a label to display the processing time.
             Label:
                 id: processTime
                 text: ''
                 color: rgba("#005c7a")
                 halign: 'left'
-                text_size: self.size
-                size: (root.width, 10)
-                font_size: (root.height / 15) * 0.4
+                size_hint_x: None
+                pos_hint:{'top': 1.2 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 18) * 0.4
+
 
             # creates a label to area of the water
             Label:
                 id: areaOfWater
                 text: ''
                 color: rgba("#005c7a")
-                text_size: self.size
                 halign: 'left'
-                size: (root.width, 10)
-                font_size: (root.height / 15) * 0.4
-
+                size_hint_x: None
+                pos_hint:{'top': 1.2 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 18) * 0.4
 
             # creates a label to display the area of the oil.
             Label:
                 id: areaOfOil
                 text: ''
                 color: rgba("#005c7a")
-                text_size: self.size
                 halign: 'left'
-                size: (root.width, 10)
-                font_size: (root.height / 15) * 0.4
+                size_hint_x: None
+                pos_hint:{'top': 1.15 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 18) * 0.4
 
             # creates a label to display the area of the oil.
             Label:
                 id: percentOfOil
                 text: ''
                 color: rgba("#005c7a")
-                text_size: self.size
                 halign: 'left'
-                size: (root.width, 10)
-                font_size: (root.height / 15) * 0.4
+                size_hint_x: None
+                pos_hint:{'top': 1.1 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 18) * 0.4
 
             # creates a label to display the length of the boom shown.
             Label:
                 id: lengthOfBoom
                 text: ''
                 color: rgba("#005c7a")
-                text_size: self.size
                 halign: 'left'
-                size: (root.width, 10)
-                font_size: (root.height / 15) * 0.4
+                size_hint_x: None
+                pos_hint:{'top': 1.3 ,'right':.63}
+                height: self.size[1]
+                font_size: (root.height / 18) * 0.4
 
         # creates a box layout to contain all of the buttons.
         BoxLayout:
-            id: buttonOverlay
+            id: buttonLayout
             background_color: 'white'
             orientation: 'horizontal'
             size_hint_y: None
             height: 100 if 100 > root.height/8 else root.height/8
             padding: 10
             spacing: 10
-
+            canvas.after:
+                Color:
+                    rgba: rgba('#005c7a')
+                Line:
+                    width: 2
+                    points: (mainLayout.center_x) , (mainLayout.center_y-mainLayout.height/2 + buttonLayout.height), mainLayout.center_x, logo.center_y - logo.parent.width/5 / logo.image_ratio
             # creates the Pick an Image Button. this button calls the FilePicker.open function, every time the
             # button is released.  the inputs for the function are filechooser.path, which provides the path of the
             # file chosen. the 2nd input is the filechooser.selection, which essentially is the name of the file.
@@ -162,6 +318,7 @@ WindowManager:
                 font_size: ((root.height + root.width) / 30) * 0.7
                 size_hint: .3, 1
                 size: 75, 100
+                size_hint_max_y: .4
                 orientation: 'vertical'
 
             # creates the Process Button. this button calls the FilePicker.process function, every time the
@@ -170,6 +327,7 @@ WindowManager:
                 id: processButton
                 text: "Process!"
                 border: 15,15,15,15
+                size_hint_max_y: .4
                 font_size: ((root.height + root.width) / 30) * 0.7
                 size_hint: .3, 1
                 orientation: 'vertical'
@@ -184,6 +342,7 @@ WindowManager:
                 font_size: ((root.height + root.width) / 30) * 0.7
                 size_hint: .3, 1
                 size: 75, 100
+                size_hint_max_y: .4
                 orientation: 'vertical'
                 on_release: FilePicker.clear()
 

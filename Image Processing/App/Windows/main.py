@@ -33,21 +33,24 @@ import kivy
 import numpy as np
 
 # from kivy.app import App - required import to run the application.
+# from kivy.clock import Clock - required for scheduling certain tasks.
 # from config import Config - used to set the configuration of the application, such as how to respond to various inputs
 # from kivy.core.window import Window - used to set the window size, and the window title
 # from kivy.uix.screenmanager import ScreenManager, Screen - used to create the screens, and to switch between them
-# from matplotlib import pyplot as plt - used to plot the histograms; for future enhancements
 # from kivy.utils import get_color_from_hex as rgba - used for converting hexadecmical colors into the rgba format
+# from matplotlib import pyplot as plt - used to plot the histograms; for future enhancements
 # from sklearn import cluster - used to perform the clustering of the colors
-
+# from datetime import datetime - used to get the current date and time, to be displayed on screen
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.config import Config
 from kivy.core.window import Window
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.utils import get_color_from_hex as rgba
 # from matplotlib import pyplot as plt
 from sklearn import cluster
+from datetime import datetime
 
 # set minimum version of kivy to 2.0.0
 kivy.require('2.0.0')
@@ -56,6 +59,7 @@ kivy.require('2.0.0')
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 # set the window color to white
+
 Window.clearcolor = (1, 1, 1, 1)
 
 
@@ -151,9 +155,7 @@ class OilSpillImage:
         totalWaterArea = Hcm * Wcm
 
         # returning the clustered image, the calculated total water area, and the scales of the image.
-        print(self.combinedScale)
-        print(Hpx)
-        print(Wpx)
+
         return clusteredImage, totalWaterArea, self.scaleH, self.scaleW, self.combinedScale
 
     # function to interpret the clustered image. the function takes in the real (original image), the clustered image
@@ -199,7 +201,6 @@ class OilSpillImage:
 
             # *** for revision OPS
             if area > areaReq:
-
                 # total oil area is increased as more contours are added
                 totalOilArea = totalOilArea + area
 
@@ -252,7 +253,7 @@ class OilSpillImage:
         hullLengthinCM = hullLengthinPX / self.combinedScale
 
         # return the final image, the contours, the total oil area, and the hull length in cm
-        return final, contours, totalOilArea, hullLengthinCM
+        return final, contours, totalOilArea, hullLengthinCM, clusteredImage, grayscaleImage, binaryImage
 
 
 # function to update the file list entry, input requires the file chooser widget, and the file list entry.
@@ -267,6 +268,15 @@ class FilePickerScreen(Screen):
 
     # initializes the screen, and declares the necessary variables
     def __init__(self, **kwargs):
+        self.TimeLabel = None
+        self.fileChooserTitle = None
+        self.buttonLayout = None
+        self.logo = None
+        self.mainLayout = None
+        self.grayscaleImage = None
+        self.binaryImage = None
+        self.clusteredImage = None
+        self.originalImage = None
         self.MenuObstacleDetectionButton = None
         self.MenuOilSpillButton = None
         self.MenuButton = None
@@ -282,7 +292,7 @@ class FilePickerScreen(Screen):
         self.title = None
         self.processTimeLabel = None
         self.filePicker = None
-        self.OilPic = None
+        self.processedImage = None
         self.processPic = None
         self.scaleW = None
         self.scaleH = None
@@ -292,7 +302,7 @@ class FilePickerScreen(Screen):
         super(FilePickerScreen, self).__init__(**kwargs)
 
         # for debugging purposes
-        ## print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        ## print("----------------------")
         ## print(len(self.children))
         ## print(len(self.children))
 
@@ -301,11 +311,36 @@ class FilePickerScreen(Screen):
 
     def setup(self):
 
-        self.headerLayout = self.ids["headerLayout"]
+        self.mainLayout = self.ids['mainLayout']
+        self.fileChooserTitle = self.ids['FileChooserTitle']
+        self.TimeLabel = self.ids['timeLabel']
 
-        # sets the self.OilPic to the image widget, using its ID. also sets properties of the widget
-        self.OilPic = self.ids["OilImage"]
-        self.OilPic.nocache = True
+        # updates the time every second
+        Clock.schedule_interval(lambda dt: self.updateTime(), 1)
+
+        # sets the self.processedImage to the image widget, using its ID. also sets properties of the widget
+
+        self.processedImage = self.ids["processedImage"]
+        self.processedImage.nocache = True
+
+        self.originalImage = self.ids["originalImage"]
+        self.originalImage.nocache = True
+
+        self.clusteredImage = self.ids["clusteredImage"]
+        self.clusteredImage.nocache = True
+
+        self.binaryImage = self.ids["binaryImage"]
+        self.binaryImage.nocache = True
+
+        self.originalImage = self.ids["originalImage"]
+        self.originalImage.nocache = True
+
+        self.grayscaleImage = self.ids["grayscaleImage"]
+        self.grayscaleImage.nocache = True
+
+        #
+        self.buttonLayout = self.ids["buttonLayout"]
+        self.logo = self.ids["logo"]
 
         # sets button variable to their respective button widgets to the button widget, using its ID;
         # also sets properties of the buttons
@@ -333,11 +368,16 @@ class FilePickerScreen(Screen):
         # prints "setup finished"; for debugging
         ## print("setup finished")
 
+    def updateTime(self):
+        now = datetime.now()
+        currentTime = now.strftime("%I:%M:%S %p")
+        self.TimeLabel.text = str(currentTime)
+
     # function called when a file is selected from the file picker. the name of the file is displayed on screen and is
     # set to the self.fileName variable. the input for this function is the filename.
     def selected(self, filename):
         try:
-            self.title.text = "Selected: " + filename[0]
+            self.fileChooserTitle.text = "Selected: " + filename[0]
             self.fileName = filename
         except IndexError:
             pass
@@ -380,46 +420,51 @@ class FilePickerScreen(Screen):
             cv.imwrite('originalImage.png', pic)
 
             # the source of the image displayed on screen is set to the originalImage.png file
-            self.OilPic.source = ""
-            self.OilPic.source = 'originalImage.png'
+            self.originalImage.source = ""
+            self.originalImage.source = 'originalImage.png'
+            cv.imwrite('original_image.jpg', pic)
 
         # if an errror rises, at it is an IndexError, it will display "Please Select an Image" on the screen.
         except IndexError:
-            self.title.text = "Please select an Image!"
+            self.fileChooserTitle.text = "Please select an Image!"
 
-        # if it is any other error, it will display "An Error has Occurred" on the screen.
+        # if it is any other error, it will display an error message on the screen.
         except:
-            self.title.text = "An Error has Occurred!"
+            self.fileChooserTitle.text = "An error has occured while selecting that image!"
 
     # function to execute when the process button is pressed. the function will process the given image, and display
     # the respective analytics. it will also display the time it took to process the image.
     def process(self):
 
         # gets the file that is displayed on the screen
-        file = self.OilPic.source
+        file = self.originalImage.source
 
         # process all images except the default image
-        if file != "PleasePickAnImage.png":
+        if file != "drone.png":
 
             # start the timer
             StartTime = time.perf_counter()
 
             # read the image
-            pic = cv.imread(file)
+            originalImage = cv.imread(file)
 
             # create an instance of the OilSpillImage class
-            self.processPic = OilSpillImage(pic)
-            print("file being processed" + file)
+            self.processPic = OilSpillImage(originalImage)
+
 
             # finds the oil in the image
             reducedColors, totalWaterAreaInCM2, self.scaleH, self.scaleW, self.combinedScale = self.processPic.findOil(
-                pic)
+                originalImage)
 
             #  makes the oil spill visible, and gets all the analytics
-            final, contours, totalOilAreaInPx, hullLengthinCM3 = self.processPic.makePerimeters(pic, reducedColors,
-                                                                                                areaReq=1000)
-            # save the processed image
-            cv.imwrite('processed_pic.jpg', final)
+            processedImage, contours, totalOilAreaInPx, hullLengthinCM3, clusteredImage, grayscaleImage, binaryImage = \
+                self.processPic.makePerimeters(originalImage, reducedColors, areaReq=1000)
+
+            # save the images
+            cv.imwrite('processed_pic.jpg', processedImage)
+            cv.imwrite('clustered_image.jpg', clusteredImage)
+            cv.imwrite('grayscale_image.jpg', grayscaleImage)
+            cv.imwrite('binary_image.jpg', binaryImage)
 
             # finding oil area in cm^2 using the scale
             totalOilAreaInCM2 = totalOilAreaInPx / self.scaleH
@@ -433,13 +478,14 @@ class FilePickerScreen(Screen):
             # finding the length of boom needed
             hullLengthinCM3 = round(hullLengthinCM3, 2)
 
-            # saves the pic to local storage
-            self.OilPic.source = 'processed_pic.jpg'
+            self.clusteredImage.source = 'clustered_Image.jpg'
 
-            # reloads the image to the screen
-            self.OilPic.reload()
+            self.grayscaleImage.source = 'grayscale_image.jpg'
 
-            # displaying analytics on the screen
+            self.binaryImage.source = 'binary_image.jpg'
+
+            self.processedImage.source = 'processed_pic.jpg'
+
             self.title.text = "Image Analytics:  "
             self.areaOfWaterLabel.text = "The area of water is " + str(totalWaterAreaInCM2) + " square centimeters"
             self.areaOfOilLabel.text = "The area of oil is " + str(totalOilAreaInCM2) + " square centimeters"
@@ -456,7 +502,9 @@ class FilePickerScreen(Screen):
             processingTime = round(processingTime, 2)
 
             # displaying the time it took to process the image
-            self.processTimeLabel.text = "The time taken to process the image was: " + str(processingTime) + " seconds!"
+            self.processTimeLabel.text = "The time taken to process the image was: " + str(
+                processingTime) + " seconds! "
+
         else:
             # if the same image is the same as the default image, tell the user to select an image
             self.title.text = "Please select an Image!"
@@ -467,11 +515,15 @@ class FilePickerScreen(Screen):
         # print("cleared!")
 
         # clears the image and sets it to the default image. also displays that the process was a success
-        self.OilPic.source = 'PleasePickAnImage.png'
+        self.originalImage.source = 'drone.png'
+        self.processedImage.source = 'processed.png'
+        self.clusteredImage.source = 'clustered.png'
+        self.grayscaleImage.source = 'grayscale.png'
+        self.binaryImage.source = 'blackandwhite.png'
         self.title.text = "Image Succesfully Cleared!"
 
         # clear the analytics from the screen
-        self.processTimeLabel.text = ''
+        self.processTimeLabel.text = 'Please pick an Image!'
         self.areaOfWaterLabel.text = ''
         self.areaOfOilLabel.text = ''
         self.percentOfOilLabel.text = ''
@@ -492,6 +544,21 @@ class WindowManager(ScreenManager):
     pass
 
 
+def resizeScreen():
+    # get the screen size
+    screen = Window.size
+
+    # get the screen width and height
+    screenWidth = screen[0]
+    screenHeight = screen[1]
+
+    aspectRatio = 4 / 3
+
+    # print(Window.size)
+    # set the size of the window to the screen size
+    Window.size = (screenWidth, screenWidth / aspectRatio)
+
+
 # the OCTOPAS class, this is what runs all the previous code.
 class OCTOPASApp(App):
 
@@ -502,15 +569,11 @@ class OCTOPASApp(App):
         # creates a screen for the file picker, and names it 'first'
         FPScreen = FilePickerScreen(name='FPScreen')
 
-        IAN = ObstacleDetection(name='IAN')
-
         # sets up the file picker screen
         FPScreen.setup()
 
         # adds the file picker screen to the screen manager
         sm.add_widget(FPScreen)
-
-        sm.add_widget(IAN)
 
         self.icon = 'Icon.ico'
 
@@ -523,5 +586,7 @@ class OCTOPASApp(App):
 
 # runs the OCTOPAS class
 if __name__ == '__main__':
+    # forces the window to be 4:3 aspect ratio
+    Clock.schedule_interval(lambda dt: resizeScreen(), 0)
     # runs the app
     OCTOPASApp().run()
