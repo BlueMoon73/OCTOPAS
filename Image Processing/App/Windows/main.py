@@ -24,6 +24,7 @@
 # import kivy - used to create the GUI
 # import numpy - used to perform calculations, based on the images. used for concatenating arrays, calculations of
 # histograms, finding unique colors, etc. numpy simplifies and optimizes mathematical calculations.
+# import datetime - used to get the current date and time, to be displayed on screen
 
 
 import os
@@ -31,6 +32,8 @@ import time
 import cv2 as cv
 import kivy
 import numpy as np
+import serial
+import datetime
 
 # from kivy.app import App - required import to run the application.
 # from kivy.clock import Clock - required for scheduling certain tasks.
@@ -40,17 +43,17 @@ import numpy as np
 # from kivy.utils import get_color_from_hex as rgba - used for converting hexadecmical colors into the rgba format
 # from matplotlib import pyplot as plt - used to plot the histograms; for future enhancements
 # from sklearn import cluster - used to perform the clustering of the colors
-# from datetime import datetime - used to get the current date and time, to be displayed on screen
 
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config
 from kivy.core.window import Window
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.image import Image
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.utils import get_color_from_hex as rgba
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 from sklearn import cluster
-from datetime import datetime
 
 # set minimum version of kivy to 2.0.0
 kivy.require('2.0.0')
@@ -268,16 +271,16 @@ class FilePickerScreen(Screen):
 
     # initializes the screen, and declares the necessary variables
     def __init__(self, **kwargs):
+
         self.TimeLabel = None
         self.fileChooserTitle = None
         self.buttonLayout = None
         self.logo = None
-        self.mainLayout = None
         self.grayscaleImage = None
         self.binaryImage = None
         self.clusteredImage = None
         self.originalImage = None
-        self.MenuObstacleDetectionButton = None
+        self.MenuBluetoothControllerButton = None
         self.MenuOilSpillButton = None
         self.MenuButton = None
         self.processingDropdown = None
@@ -311,15 +314,27 @@ class FilePickerScreen(Screen):
 
     def setup(self):
 
-        self.mainLayout = self.ids['mainLayout']
+        # sets some variables to their respective widgets
         self.fileChooserTitle = self.ids['FileChooserTitle']
         self.TimeLabel = self.ids['timeLabel']
 
         # updates the time every second
         Clock.schedule_interval(lambda dt: self.updateTime(), 1)
 
-        # sets the self.processedImage to the image widget, using its ID. also sets properties of the widget
+        # sets the variables to their respective widgets
+        self.processingDropdown = self.ids['processingDropdown']
+        self.MenuOilSpillButton = self.ids['MenuOilSpillButton']
+        self.MenuBluetoothControllerButton = self.ids['MenuBluetoothControllerButton']
+        self.MenuButton = self.ids['menuButton']
 
+        # Makes the dropdown open, everytime the menu button is pressed
+        self.MenuButton.bind(on_release=self.processingDropdown.open)
+
+        # setting properties of the dropdown and the menu button
+        self.processingDropdown.bind(on_select=lambda instance, x: setattr(self.MenuButton, 'text', x))
+        self.processingDropdown.auto_dismiss = True
+
+        # sets the images to the image widgets, using its ID. also sets properties of the widget
         self.processedImage = self.ids["processedImage"]
         self.processedImage.nocache = True
 
@@ -369,7 +384,7 @@ class FilePickerScreen(Screen):
         ## print("setup finished")
 
     def updateTime(self):
-        now = datetime.now()
+        now = datetime.datetime.now()
         currentTime = now.strftime("%I:%M:%S %p")
         self.TimeLabel.text = str(currentTime)
 
@@ -451,7 +466,6 @@ class FilePickerScreen(Screen):
             # create an instance of the OilSpillImage class
             self.processPic = OilSpillImage(originalImage)
 
-
             # finds the oil in the image
             reducedColors, totalWaterAreaInCM2, self.scaleH, self.scaleW, self.combinedScale = self.processPic.findOil(
                 originalImage)
@@ -530,12 +544,124 @@ class FilePickerScreen(Screen):
         self.lengthOfBoomLabel.text = ''
 
 
-# class to analyze the data of the experiment, and compare before/after images; for future enhancements
-class DataAnalysis(Screen):
-    pass
+# class to control the sorbent deployment system (OCTOPAS ARM). analytics from the OCTOPAS arm will also be displayed
+# on this screen.
+class BluetoothController(Screen):
+
+    # initializes requured variables
+    def __init__(self, **kwargs):
+        super(BluetoothController, self).__init__(**kwargs)
+        self.time = None
+        self.TimeLabel = None
+        self.bluetooth = None
+        self.messageLog = None
+        self.textInput = None
+        self.MenuButton = None
+        self.MenuBluetoothControllerButton = None
+        self.MenuOilSpillButton = None
+        self.processingDropdown = None
+        self.messageLogTitle = None
+        self.startTime = datetime.datetime.now()
+
+    def setup(self):
+        # sets the variables involved with the dropdown to their respective widgets
+        self.processingDropdown = self.ids['processingDropdown']
+        self.MenuOilSpillButton = self.ids['MenuOilSpillButton']
+        self.MenuBluetoothControllerButton = self.ids['MenuBluetoothControllerButton']
+        self.MenuButton = self.ids['menuButton']
+
+        # Makes the dropdown open, everytime the menu button is pressed
+        self.MenuButton.bind(on_release=self.processingDropdown.open)
+
+        # sets the texinput to the textinput widget
+        self.textInput = self.ids['bluetoothInput']
+
+        # sets the message log to the message log widget
+        self.messageLog = self.ids['messageLog']
+
+        # sets the message log title to the message log title widget
+        self.messageLogTitle = self.ids['messageLogTitle']
+
+        self.TimeLabel = self.ids['timeLabel']
+
+        # updates the time every second
+        Clock.schedule_interval(lambda dt: self.updateTime(), 1)
+
+        # self.generateGraph()
+
+        try:
+            self.pair()
+        except Exception as e:
+            self.messageLogTitle.text = "Please turn on bluetooth on your computer!"
+            self.messageLog.text = "Error Occured " + str(e) + serial.__file__
+
+    def updateTime(self):
+        now = datetime.datetime.now()
+        currentTime = now.strftime("%I:%M:%S %p")
+        self.TimeLabel.text = str(currentTime)
+
+    def sendMessage(self, message):
+        # gets the current time and formats it
+        now = datetime.datetime.now()
+        currentTime = now.strftime("%I:%M:%S")
+
+        if message.isdigit():
+
+            # adds the message to the log
+            self.messageLog.text = self.messageLog.text + " " + currentTime + ": " + message + '\n'
+
+            # sends the message to the arduino via the bluetooth module
+            try:
+                self.bluetooth.write(message.encode())
+                self.messageLogTitle.text = "ARM Controller Log"
+            except AttributeError:
+                self.messageLogTitle.text = "Please turn on bluetooth on your computer!"
+
+        else:
+            self.messageLogTitle.text = "Please enter the time, in seconds!"
+
+    def pair(self, port='COM10', baudrate=9600):
+        # establishes a connection with the bluetooth module
+        self.bluetooth = serial.Serial(port, baudrate)
+        self.bluetooth.flushInput()
+        self.messageLog.text = self.messageLog.text + "Bluetooth Connected to " + port + '\n'
+
+    # def generateGraph(self):
+    #
+    #     # print(lol)
+    #     result = (self.startTime + datetime.timedelta(hours=0, minutes=2, seconds=24))
+    #     self.startTime = self.startTime.strftime("%I:%M:%S %p")
+    #     result = result.strftime("%I:%M:%S %p")
+    #
+    #
+    #     timeSinceStart = np.array([self.startTime, result])
+    #     timeSorbentDeployed = np.array([5, 8])
+    #
+    #     ax = plt.axes()
+    #
+    #     plt.scatter(timeSinceStart, timeSorbentDeployed, c='red')
+    #
+    #     ax.set_xlabel('angle')
+    #     ax.set_title('sine')
+    #     # ax.set_xticks([0, 2, 4, 6])
+    #     # ax.set_xticklabels(['zero', 'two', 'four', 'six'])
+    #
+    #     # setting ticks for y-axis
+    #     ax.set_yticks([1, 3, 5, 7, 9])
+    #
+    #     # setting label for y tick
+    #     ax.set_yticklabels(['A', 'B', 'C', 'D', 'E'])
+    #
+    #     def updateGraph():
+    #         now = datetime.datetime.now()
+    #         currentTime = now.strftime("%I:%M:%S %p")
+    #         np.append(timeSinceStart,currentTime)
+    #
+    #
+    #     plt.show()
 
 
-class ObstacleDetection(Screen):
+class ImageButton(ButtonBehavior, Image):
     pass
 
 
@@ -549,14 +675,13 @@ def resizeScreen():
     screen = Window.size
 
     # get the screen width and height
-    screenWidth = screen[0]
     screenHeight = screen[1]
 
     aspectRatio = 4 / 3
 
     # print(Window.size)
     # set the size of the window to the screen size
-    Window.size = (screenWidth, screenWidth / aspectRatio)
+    Window.size = (screenHeight * aspectRatio, screenHeight)
 
 
 # the OCTOPAS class, this is what runs all the previous code.
@@ -566,15 +691,25 @@ class OCTOPASApp(App):
         # makes a screen manager object
         sm = WindowManager()
 
-        # creates a screen for the file picker, and names it 'first'
-        FPScreen = FilePickerScreen(name='FPScreen')
+        # creates a screen for the file picker, and names it 'FPScreen'
+        FPScreen = FilePickerScreen(name="FPScreen")
+
+        # creates a screen for the analytics, and names it 'BTController'
+        BTController = BluetoothController(name="BTController")
 
         # sets up the file picker screen
         FPScreen.setup()
 
+        # sets up the bluetooth controller screen
+        BTController.setup()
+
         # adds the file picker screen to the screen manager
         sm.add_widget(FPScreen)
 
+        # adds the bluetooth controller screen to the screen manager
+        sm.add_widget(BTController)
+
+        # sets the icon of the app
         self.icon = 'Icon.ico'
 
         # sets the title of the window
