@@ -460,7 +460,14 @@ WindowManager:
             pos_hint:{'top': 1.43,'x':.8 }
             font_size: (root.height / 15) * .8
 
-
+        Image:
+            id: Graph
+            source: ''
+            size_hint_x: None
+            width: self.parent.width/2
+            allow_stretch: True
+            keep_ratio: True
+            pos_hint:{'top': .94,'right':.85}
 
         # makes the dropdown widget where the user can choose what type of processing they want
         DropDown:
@@ -496,7 +503,6 @@ WindowManager:
                 font_size: ((root.height + root.width) / 60) * 0.7
                 height: root.height/15
                 background_color: 0,0,0,0
-
 
 
 

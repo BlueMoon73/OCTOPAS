@@ -31,9 +31,12 @@ import os
 import time
 import cv2 as cv
 import kivy
+import matplotlib
 import numpy as np
 import serial
 import datetime
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 # from kivy.app import App - required import to run the application.
 # from kivy.clock import Clock - required for scheduling certain tasks.
@@ -52,7 +55,7 @@ from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.image import Image
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.utils import get_color_from_hex as rgba
-from matplotlib import pyplot as plt
+
 from sklearn import cluster
 
 # set minimum version of kivy to 2.0.0
@@ -550,7 +553,20 @@ class BluetoothController(Screen):
 
     # initializes requured variables
     def __init__(self, **kwargs):
+        self.sorbentCurrentTime = None
+        self.sorbentEndTime = None
+        self.lastZeroTime = None
+        self.lastMessageDateTimeObject = None
+        plt.ion()
         super(BluetoothController, self).__init__(**kwargs)
+        self.sorbentTime = None
+        self.points = None
+        self.ax = None
+        self.fig = None
+        self.timeSinceStart = None
+        self.timeSorbentDeployed = None
+        self.lastMessage = None
+        self.lastMessageTime = None
         self.time = None
         self.TimeLabel = None
         self.bluetooth = None
@@ -561,6 +577,7 @@ class BluetoothController(Screen):
         self.MenuOilSpillButton = None
         self.processingDropdown = None
         self.messageLogTitle = None
+        self.Graph = None
         self.startTime = datetime.datetime.now()
 
     def setup(self):
@@ -584,10 +601,14 @@ class BluetoothController(Screen):
 
         self.TimeLabel = self.ids['timeLabel']
 
+        self.Graph = self.ids['Graph']
+
         # updates the time every second
         Clock.schedule_interval(lambda dt: self.updateTime(), 1)
 
-        # self.generateGraph()
+        self.generateGraph()
+
+        Clock.schedule_interval(lambda dt: self.updateGraph(), 1)
 
         try:
             self.pair()
@@ -604,11 +625,14 @@ class BluetoothController(Screen):
         # gets the current time and formats it
         now = datetime.datetime.now()
         currentTime = now.strftime("%I:%M:%S")
+        self.lastMessageDateTimeObject = now
 
         if message.isdigit():
 
             # adds the message to the log
             self.messageLog.text = self.messageLog.text + " " + currentTime + ": " + message + '\n'
+            self.lastMessage = message
+            self.lastMessageTime = currentTime
 
             # sends the message to the arduino via the bluetooth module
             try:
@@ -626,39 +650,142 @@ class BluetoothController(Screen):
         self.bluetooth.flushInput()
         self.messageLog.text = self.messageLog.text + "Bluetooth Connected to " + port + '\n'
 
-    # def generateGraph(self):
-    #
-    #     # print(lol)
-    #     result = (self.startTime + datetime.timedelta(hours=0, minutes=2, seconds=24))
-    #     self.startTime = self.startTime.strftime("%I:%M:%S %p")
-    #     result = result.strftime("%I:%M:%S %p")
-    #
-    #
-    #     timeSinceStart = np.array([self.startTime, result])
-    #     timeSorbentDeployed = np.array([5, 8])
-    #
-    #     ax = plt.axes()
-    #
-    #     plt.scatter(timeSinceStart, timeSorbentDeployed, c='red')
-    #
-    #     ax.set_xlabel('angle')
-    #     ax.set_title('sine')
-    #     # ax.set_xticks([0, 2, 4, 6])
-    #     # ax.set_xticklabels(['zero', 'two', 'four', 'six'])
-    #
-    #     # setting ticks for y-axis
-    #     ax.set_yticks([1, 3, 5, 7, 9])
-    #
-    #     # setting label for y tick
-    #     ax.set_yticklabels(['A', 'B', 'C', 'D', 'E'])
-    #
-    #     def updateGraph():
-    #         now = datetime.datetime.now()
-    #         currentTime = now.strftime("%I:%M:%S %p")
-    #         np.append(timeSinceStart,currentTime)
-    #
-    #
-    #     plt.show()
+    def generateGraph(self):
+
+        # print(lol)
+
+        # result = (self.startTime + datetime.timedelta(hours=0, minutes=2, seconds=24))
+
+        xLabels = [self.startTime.strftime("%I:%M:%S")]
+        xTicks = [self.startTime]
+        print(self.startTime)
+        print(type(self.startTime))
+        for i in range(10 * 2):
+            if i >= 1:
+                seconds = self.startTime.strftime("%S")
+                seconds = int(seconds)
+                roundedStartTime = self.startTime + datetime.timedelta(seconds=-seconds)
+                tick = roundedStartTime + datetime.timedelta(seconds=30 * i)
+                # tick = label.strftime("%I:%M:%S")
+                label = tick.strftime("%I:%M:%S")
+                xTicks.append(tick)
+                print(xTicks)
+                print(tick)
+                print('0---0-0-0-0')
+                print(label)
+                xLabels.append(label)
+
+        xTicks = matplotlib.dates.date2num(xTicks)
+
+        yTicks = []
+        for i in range(60):
+            yTicks.append(i)
+        print(xTicks)
+
+        self.fig, self.ax = plt.subplots(1, 1)
+
+        self.points = self.ax.plot(self.startTime, 0, '-o')[0]
+
+        self.ax.xaxis.axis_date = True
+        self.ax.set_xlabel('Time Of Deployment')
+        self.ax.set_title('Graph of Sorbent Deployment')
+
+        self.ax.set_ylabel('Amount of Sorbent Deployed (seconds)')
+
+        self.ax.set_yticks(yTicks)
+        self.ax.set_xticks(xTicks)
+        self.ax.set_xticklabels(xLabels)
+
+        plt.savefig('Graph.png', bbox_inches='tight')
+        self.Graph.source = 'Graph.png'
+
+    def updateGraph(self):
+        now = datetime.datetime.now()
+        now = (now + datetime.timedelta(hours=0, minutes=0, seconds=-1))
+        # currentTime = now.strftime("%I:%M:%S")
+        xdata = self.points.get_xdata()
+        # nowTime = matplotlib.dates.date2num(now)
+        diff = None
+
+        try:
+            diff = now - self.lastMessageDateTimeObject
+        except TypeError:
+            pass
+
+        if len(xdata) < 120:
+            if diff and diff.total_seconds() < 1:
+                self.sorbentTime = int(self.lastMessage)
+                timeOfDeployment = [self.lastZeroTime]
+                deployment = [0]
+
+                for i in range(self.sorbentTime):
+                    # print(self.lastMessageTime)
+                    self.sorbentCurrentTime = (self.lastMessageDateTimeObject + datetime.timedelta(seconds=i))
+                    timeOfDeployment.append(self.sorbentCurrentTime)
+                    deployment.append(self.sorbentTime)
+
+                self.sorbentEndTime = self.sorbentCurrentTime
+                timeOfDeployment = matplotlib.dates.date2num(timeOfDeployment)
+                # print(timeOfDeployment)
+                # print(deployment)
+
+                self.ax.plot(timeOfDeployment, deployment, '-o', c='green')
+                print(now)
+
+                print(self.lastMessageDateTimeObject)
+                print("00-")
+
+            else:
+                zeroTime = []
+                amtOfSorbent = []
+                previousSecond = now + datetime.timedelta(hours=0, minutes=0, seconds=-1)
+                # difference = now - self.sorbentEndTime
+
+
+                pointIsPlotted = None
+                try:
+                    maxTime = self.sorbentEndTime + datetime.timedelta(hours=0, minutes=0, seconds=1)
+                    if self.lastMessageDateTimeObject < now < maxTime:
+                        pointIsPlotted = True
+                    else:
+                        pointIsPlotted = False
+
+                except:
+                    pass
+
+                # print(previousSecond)
+                # print(self.sorbentEndTime)
+                # print('\n')
+
+                # print(xdata)
+
+                # print(nowTime)
+                if self.sorbentTime and previousSecond.strftime("%I:%M:%S") == self.sorbentEndTime.strftime("%I:%M:%S"):
+                    zeroTime.append(self.sorbentEndTime)  # the x value of the top
+                    zeroTime.append(now)  # x value of 2nd
+                    amtOfSorbent.append(self.sorbentTime)  # y value of top
+                    amtOfSorbent.append(0)  # y value of 2nd
+                    zeroTime = matplotlib.dates.date2num(zeroTime)
+
+                    self.ax.plot(zeroTime, amtOfSorbent, '-o', color='green')
+                    print(self.sorbentEndTime)
+                    print('in if statement')
+                    print(zeroTime)
+                elif not pointIsPlotted:
+
+                    # print('no sorbent deployed')
+                    zeroTime.append(now)
+                    amtOfSorbent.append(0)
+                    zeroTime = matplotlib.dates.date2num(zeroTime)
+                    self.ax.plot(zeroTime, amtOfSorbent, '-o', c='blue')
+                    self.lastZeroTime = now
+
+        else:
+            pass   # do nothing
+
+        plt.savefig('Graph.png', bbox_inches='tight')
+        self.Graph.reload()
+        # plt.show()
 
 
 class ImageButton(ButtonBehavior, Image):
