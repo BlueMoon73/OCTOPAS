@@ -2,7 +2,7 @@
 #
 #  Author:  Monish Saravana Kumar Divya Sundari
 #
-#  Initial Date:  9/10/2022
+#  Initial Date:  6/4/2022
 #
 #  Last Updated:  10/1/2022
 #
@@ -37,6 +37,7 @@ import serial
 import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import mysql.connector
 
 # from kivy.app import App - required import to run the application.
 # from kivy.clock import Clock - required for scheduling certain tasks.
@@ -67,7 +68,6 @@ Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 # set the window color to white
 
 Window.clearcolor = (1, 1, 1, 1)
-
 
 # class for the actual image processing algorithm. this class can be called, anytime an image needs to be processed.
 # this is a separate class, and not coded into the screen class because there may be multiple images that get processed
@@ -116,13 +116,15 @@ class OilSpillImage:
         unique = zip(colors, counts)
 
         # function to convert from r,g,b to hex; not used yet; for future enhancements
-        ## def encode_hex(BGRcolor):
-        ##     b = BGRcolor[0]
-        ##     g = BGRcolor[1]
-        ##     r = BGRcolor[2]
-        ##     hexColor = '#' + str(bytearray([r, g, b]).hex())
-        ##     print(hexColor)
-        ##     return hexColor
+        def encode_hex(BGRcolor):
+            b = BGRcolor[0]
+            g = BGRcolor[1]
+            r = BGRcolor[2]
+            hexColor = '#' + str(bytearray([r, g, b]).hex())
+            print(hexColor)
+            return hexColor
+
+        encode_hex(colors[0])
 
         # plot each color; for future enhancements
         ## fig = plt.figure()
@@ -171,6 +173,19 @@ class OilSpillImage:
     # this function also creates the booms and displays them on screen.
 
     def makePerimeters(self, real, clusteredImage, areaReq=1000):
+        # final - makes a copy of the real image, the real image is never modified, only the final image is modified
+        # throughout the algorithm
+        final = real
+
+        # NEW CODE
+        k = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+        k2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+        k3 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (1, 1))
+
+        clusteredImage = cv.erode(clusteredImage, k3, iterations=7)
+        clusteredImage = cv.dilate(clusteredImage, k, iterations=1)
+        clusteredImage = cv.morphologyEx(clusteredImage, cv.MORPH_CLOSE, k2)
+        clusteredImage = cv.morphologyEx(clusteredImage, cv.MORPH_CLOSE, k2)
 
         # the colorspace of the image is converted to grayscale
         grayscaleImage = cv.cvtColor(clusteredImage, cv.COLOR_BGR2GRAY)
@@ -181,20 +196,20 @@ class OilSpillImage:
 
         binaryImage = cv.adaptiveThreshold(grayscaleImage, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
                                            cv.THRESH_BINARY, 3, 0)
+        binaryImage = cv.morphologyEx(binaryImage, cv.MORPH_OPEN, k3)
+
+        # binaryImage = np.uint8(final)
 
         # finds the contours and the hierarchy of the binary image
         contours, hierarchies = cv.findContours(binaryImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
         # declares variables and arrays to be used
-        # final - makes a copy of the real image, the real image is never modified, only the final image is modified
-        # throughout the algorithm
         # *** for revision
-        final = real
         maxArea = -1
         totalOilArea = 0
         oil_contours = []
         uni_hull = []
-        kernelFactor = 11
+        kernelFactor = 7
         maxContourIndex = None
         maxContour = None
 
@@ -206,7 +221,7 @@ class OilSpillImage:
             area = cv.contourArea(contours[i])
 
             # *** for revision OPS
-            if area > areaReq:
+            if area >= areaReq:
                 # total oil area is increased as more contours are added
                 totalOilArea = totalOilArea + area
 
@@ -221,16 +236,17 @@ class OilSpillImage:
                 # draw the approximated contour on the image, in dark blue (same color as logo). the contour is also
                 # filled in completely with dark blue. BGR  of dark blue is (122, 92, 0). the countours are drawn one
                 # by one a new contour is added each iteration of the 'for loop'
-                final = cv.drawContours(final, [poly], -1, (122, 92, 0), -1)
+                final = cv.drawContours(final, [poly], 0, (122, 92, 0), -1)
+                # final = cv.drawContours(final, contours, -1, (122, 92, 0), -1)
 
                 # draws the image; for future enhancements and debugging
                 ## final = cv.drawContours(final, poly, -1, (255, 0, 0), 8)
 
-                # Smoothing the image, using a morphological closing operation. the kernel is a 11x11 matrix, but can
-                # be changed if the kernelFactor variable is changed. *** for revision , why 11x11, move out of loop
-                kernel = np.ones((kernelFactor, kernelFactor), np.uint8)
-                final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
-                final = np.uint8(final)
+        # Smoothing the image, using a morphological closing operation. the kernel is a 11x11 matrix, but can
+        # be changed if the kernelFactor variable is changed. *** for revision , why 11x11, move out of loop
+        kernel = np.ones((kernelFactor, kernelFactor), np.uint8)
+        final = cv.morphologyEx(final, cv.MORPH_CLOSE, kernel)
+        final = np.uint8(final)
 
         # go through the oil contours array, and make a hull for each one. the hull is the smallest convex polygon that
         # can fit around all the given points in an array.
@@ -417,7 +433,10 @@ class FilePickerScreen(Screen):
     # the inputs for this function are the path, and the filename.
 
     def open(self, path, fileName):
-
+        # os.remove("processed_pic.jpg")
+        # os.remove("grayscale_image.jpg")
+        # os.remove("clustered_image.jpg")
+        # os.remove("original_image.jpg")
         # tries to open the image, but if an error rises, it will print the error.
         try:
 
@@ -475,7 +494,7 @@ class FilePickerScreen(Screen):
 
             #  makes the oil spill visible, and gets all the analytics
             processedImage, contours, totalOilAreaInPx, hullLengthinCM3, clusteredImage, grayscaleImage, binaryImage = \
-                self.processPic.makePerimeters(originalImage, reducedColors, areaReq=1000)
+                self.processPic.makePerimeters(originalImage, reducedColors, areaReq=500)
 
             # save the images
             cv.imwrite('processed_pic.jpg', processedImage)
@@ -489,7 +508,7 @@ class FilePickerScreen(Screen):
             totalOilAreaInCM2 = round(totalOilAreaInCM2, 2)
 
             # finding oil percent of the entire image
-            totalOilPercent = (totalOilAreaInCM2 / totalWaterAreaInCM2) * 100
+            totalOilPercent = (totalOilAreaInPx / totalWaterAreaInCM2) * 100
             totalOilPercent = round(totalOilPercent, 2)
 
             # finding the length of boom needed
@@ -557,7 +576,7 @@ class BluetoothController(Screen):
         self.sorbentEndTime = None
         self.lastZeroTime = None
         self.lastMessageDateTimeObject = None
-        plt.ion()
+        # plt.ion()
         super(BluetoothController, self).__init__(**kwargs)
         self.sorbentTime = None
         self.points = None
@@ -641,6 +660,7 @@ class BluetoothController(Screen):
             except AttributeError:
                 self.messageLogTitle.text = "Please turn on bluetooth on your computer!"
 
+        # message for error
         else:
             self.messageLogTitle.text = "Please enter the time, in seconds!"
 
@@ -652,14 +672,12 @@ class BluetoothController(Screen):
 
     def generateGraph(self):
 
-        # print(lol)
-
         # result = (self.startTime + datetime.timedelta(hours=0, minutes=2, seconds=24))
 
         xLabels = [self.startTime.strftime("%I:%M:%S")]
         xTicks = [self.startTime]
-        print(self.startTime)
-        print(type(self.startTime))
+        # print(self.startTime)
+        # print(type(self.startTime))
         for i in range(10 * 2):
             if i >= 1:
                 seconds = self.startTime.strftime("%S")
@@ -669,10 +687,10 @@ class BluetoothController(Screen):
                 # tick = label.strftime("%I:%M:%S")
                 label = tick.strftime("%I:%M:%S")
                 xTicks.append(tick)
-                print(xTicks)
-                print(tick)
-                print('0---0-0-0-0')
-                print(label)
+                # print(xTicks)
+                # print(tick)
+                # print('0---0-0-0-0')
+                # print(label)
                 xLabels.append(label)
 
         xTicks = matplotlib.dates.date2num(xTicks)
@@ -680,22 +698,26 @@ class BluetoothController(Screen):
         yTicks = []
         for i in range(60):
             yTicks.append(i)
-        print(xTicks)
+        # print(xTicks)
 
+        # creates a figure and axis
         self.fig, self.ax = plt.subplots(1, 1)
 
+        # creates a list of points to be plotted
         self.points = self.ax.plot(self.startTime, 0, '-o')[0]
 
+        # sets the x and y labels and the title
         self.ax.xaxis.axis_date = True
         self.ax.set_xlabel('Time Of Deployment')
         self.ax.set_title('Graph of Sorbent Deployment')
-
         self.ax.set_ylabel('Amount of Sorbent Deployed (seconds)')
 
+        # sets the x and y ticks
         self.ax.set_yticks(yTicks)
         self.ax.set_xticks(xTicks)
         self.ax.set_xticklabels(xLabels)
 
+        # saves the image locally, and then displays it in the app
         plt.savefig('Graph.png', bbox_inches='tight')
         self.Graph.source = 'Graph.png'
 
@@ -730,17 +752,16 @@ class BluetoothController(Screen):
                 # print(deployment)
 
                 self.ax.plot(timeOfDeployment, deployment, '-o', c='green')
-                print(now)
+                # print(now)
 
                 print(self.lastMessageDateTimeObject)
-                print("00-")
+                # print("00-")
 
             else:
                 zeroTime = []
                 amtOfSorbent = []
                 previousSecond = now + datetime.timedelta(hours=0, minutes=0, seconds=-1)
                 # difference = now - self.sorbentEndTime
-
 
                 pointIsPlotted = None
                 try:
@@ -781,7 +802,7 @@ class BluetoothController(Screen):
                     self.lastZeroTime = now
 
         else:
-            pass   # do nothing
+            pass  # do nothing
 
         plt.savefig('Graph.png', bbox_inches='tight')
         self.Graph.reload()
@@ -840,7 +861,7 @@ class OCTOPASApp(App):
         self.icon = 'Icon.ico'
 
         # sets the title of the window
-        self.title = 'OCTOPAS Algorithm'
+        self.title = 'OCTOPAS'
 
         # returns the screen manager
         return sm
@@ -852,3 +873,4 @@ if __name__ == '__main__':
     Clock.schedule_interval(lambda dt: resizeScreen(), 0)
     # runs the app
     OCTOPASApp().run()
+    print("App Launched")
