@@ -44,7 +44,7 @@ OCTOPAS is a novel automated system that will be able to clean up each oil spill
   - Refers to all the components of OCTOPAS, working together. 
   - ![OCTOPAS System Workflow](https://user-images.githubusercontent.com/74512799/197407916-86e03bac-94f6-4bf9-880c-18e42070bac5.jpg)
 
-# Initial Version - 09/10/2022
+# Initial Version - 09/20/2022
 
 
 
