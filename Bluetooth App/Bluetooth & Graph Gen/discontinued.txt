@@ -1,4 +1,0 @@
-The seperate bluetooh and graph generation mobile app has been discontinued. 
-
-The Bluetooth and Graph Generation functionality has all been merged into the main desktop image processing app. 
-- Reason: The seperate app was confusing, and inefficient, so it was a better option for a single app to contain everything. 
