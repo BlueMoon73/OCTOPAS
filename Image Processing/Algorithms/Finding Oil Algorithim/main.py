@@ -1,3 +1,58 @@
+##################################
+# OLDER PRACTICE CODE 
+
+# import cv2 as cv
+# import matplotlib.pyplot as plt
+#
+# # pic = cv.imread("C:/School/Science Fair/2022-2023/Oil Spill Pictures/Practice Photos/OilSpill3.jpg")
+# pic = cv.imread("C:/School/Science Fair/2022-2023/Oil Spill Pictures/Practice Photos/OilSpill2.2.jpg")
+# img = cv.cvtColor(pic, cv.COLOR_BGR2HSV)
+# gray = cv.cvtColor(pic, cv.COLOR_BGR2GRAY)
+# # cv.imshow('og pic', pic)
+# # cv.imshow('hsv', img)
+# # cv.imshow('gray', gray)
+# cv.waitKey(0)
+#
+#
+#
+# #
+# #
+# def process(img):
+#     # pic = cv.imread(path)
+#     cv.imshow('og', img)
+#     b, g, r = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+#     hist_b = cv.calcHist([b], [0], None, [256], [0, 256])
+#     hist_g = cv.calcHist([g], [0], None, [256], [0, 256])
+#     hist_r = cv.calcHist([r], [0], None, [256], [0, 256])
+#     plt.plot(hist_r, color='r', label="r")
+#     plt.plot(hist_g, color='g', label="g")
+#     plt.plot(hist_b, color='b', label="b")
+#     plt.legend()
+#     plt.show()
+#     img2 = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+#     cv.imshow('hsv', img2)
+#     img2 = img
+#     h, s, v = img2[:, :, 0], img2[:, :, 1], img2[:, :, 2]
+#     hist_h = cv.calcHist([h], [0], None, [256], [0, 256])
+#     hist_s = cv.calcHist([s], [0], None, [256], [0, 256])
+#     hist_v = cv.calcHist([v], [0], None, [256], [0, 256])
+#     plt.plot(hist_h, color='gray', label="h")
+#     plt.plot(hist_s, color='g', label="s")
+#     plt.plot(hist_v, color='b', label="v")
+#     plt.legend()
+#     plt.show()
+#     # return hist_r, hist_g, hist_b, hist_h, hist_s, hist_v
+#
+# def histo(img):
+#     gray_image = cv.cvtColor([pic], cv.COLOR_BGR2GRAY)
+#     histogram = cv.calcHist([gray_image], [0], None, [256], [0, 256])
+#     plt.plot(histogram, color='k')
+#     plt.show()
+#
+# process(pic)
+
+##################################
+
 # Finding the colors using kmeans clustering
 
 import cv2
