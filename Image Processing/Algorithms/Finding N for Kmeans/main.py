@@ -1,3 +1,5 @@
+# Elbow method for finding optimal method to find K for the kmeans clustering. 
+
 from matplotlib import pyplot as plt
 from sklearn import cluster
 import cv2 as cv
@@ -15,7 +17,7 @@ path = "C:\[2] Oil Spill.jpg"
 # path = "C:\Practice Pictures (SF)\rgb.jpg"
 # path = "rgb.jpg"
 
-# cv.imshow('asd', img)
+
 # ![](../../Practice Pictures (SF)/rgb.jpg)
 
 def reshapeImg(imgPath):
