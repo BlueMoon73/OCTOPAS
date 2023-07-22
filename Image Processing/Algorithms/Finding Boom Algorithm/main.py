@@ -1,3 +1,4 @@
+# Algorithm to get the contours for the overall oil spill, and the smaller sub oil spills, and concatenates these values and generates a path for a boom that encloses everything. 
 
 import math
 import sys
